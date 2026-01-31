@@ -1,0 +1,30 @@
+# Copyright 2025 the Vello Authors
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+name = "vello_bench_core"
+description = "Core library for vello benchmarking."
+edition = "2024"
+rust-version = "1.85"
+license = "Apache-2.0 OR MIT"
+publish = false
+
+[dependencies]
+vello_common = { path = "../../vello/sparse_strips/vello_common" }
+vello_cpu = { path = "../../vello/sparse_strips/vello_cpu" }
+vello_bench_macros = { path = "../vello_bench_macros" }
+serde = { version = "1", features = ["derive"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+rand = { version = "0.9", default-features = false, features = ["std", "std_rng"] }
+smallvec = "1.14"
+usvg = { version = "0.45", default-features = false }
+
+# WASM-specific dependencies
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3", features = ["Window", "Performance"] }
+
+[features]
+default = []
+
+[lints.rust]
+unsafe_code = "deny"

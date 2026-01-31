@@ -9,7 +9,14 @@ license = "Apache-2.0 OR MIT"
 publish = false
 
 [workspace]
-members = [".", "vello_bench_macros"]
+members = [
+    ".",
+    "vello_bench_macros",
+    "vello_bench_core",
+    "vello_bench_cli",
+    "vello_bench_wasm",
+    "vello_bench_tauri",
+]
 
 [dependencies]
 vello_common = { path = "../vello/sparse_strips/vello_common" }

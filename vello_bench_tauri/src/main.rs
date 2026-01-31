@@ -1,0 +1,23 @@
+// Copyright 2025 the Vello Authors
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+//! Tauri application for vello benchmarks.
+
+#![cfg_attr(
+    all(not(debug_assertions), target_os = "windows"),
+    windows_subsystem = "windows"
+)]
+
+mod commands;
+
+fn main() {
+    tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![
+            commands::list_benchmarks,
+            commands::get_simd_levels,
+            commands::run_benchmark,
+            commands::get_platform_info,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}

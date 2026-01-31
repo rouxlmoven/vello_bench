@@ -1,0 +1,31 @@
+# Copyright 2025 the Vello Authors
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+name = "vello_bench_tauri"
+version = "0.1.0"
+description = "Tauri application for vello benchmarking."
+edition = "2021"
+rust-version = "1.75"
+license = "Apache-2.0 OR MIT"
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+vello_bench_core = { path = "../vello_bench_core" }
+vello_common = { path = "../../vello/sparse_strips/vello_common" }
+vello_cpu = { path = "../../vello/sparse_strips/vello_cpu" }
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+smallvec = "1.14"
+tokio = { version = "1", features = ["sync"] }
+
+[features]
+default = []
+
+[lints.rust]
+unsafe_code = "deny"

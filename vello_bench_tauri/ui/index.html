@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vello Benchmark Suite</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <h1>Vello Benchmark Suite</h1>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="exec-mode">Execution:</label>
+                    <select id="exec-mode">
+                        <option value="native">Native (Tauri)</option>
+                        <option value="wasm">WASM (Browser)</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="simd-level">SIMD:</label>
+                    <select id="simd-level">
+                        <option value="auto">Auto</option>
+                    </select>
+                </div>
+                <button id="run-btn" class="btn btn-primary">Run</button>
+                <button id="abort-btn" class="btn btn-abort" style="display: none;">Abort</button>
+                <button id="export-results" class="btn">Export</button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <aside class="sidebar">
+                <h2>Categories</h2>
+                <ul id="category-list" class="category-list">
+                    <li class="category-item active" data-category="all">All Benchmarks</li>
+                </ul>
+                <div class="platform-info">
+                    <h3>Platform</h3>
+                    <div id="platform-details">
+                        <div>Arch: <span id="platform-arch">-</span></div>
+                        <div>OS: <span id="platform-os">-</span></div>
+                    </div>
+                </div>
+            </aside>
+
+            <main class="benchmark-area">
+                <div class="benchmark-header">
+                    <h2 id="current-category">All Benchmarks</h2>
+                    <div class="benchmark-stats">
+                        <span id="bench-count">0 benchmarks</span>
+                        <span id="bench-completed">0 completed</span>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="benchmark-table" class="benchmark-table">
+                        <thead>
+                            <tr>
+                                <th class="col-select"><input type="checkbox" id="select-all" title="Select All"></th>
+                                <th class="col-name">Benchmark</th>
+                                <th class="col-category">Category</th>
+                                <th class="col-status">Status</th>
+                                <th class="col-mean">Time</th>
+                                <th class="col-iters">Iters</th>
+                            </tr>
+                        </thead>
+                        <tbody id="benchmark-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
