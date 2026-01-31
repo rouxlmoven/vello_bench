@@ -7,16 +7,17 @@ const state = {
     selectedBenchmarks: [], // Array to preserve selection order
     queuedBenchmarks: new Set(),
     runningBenchmark: null,
-    runningPhase: null, // 'warmup' or 'measuring'
+    runningPhase: null, // 'calibrating' or 'measuring'
     currentCategory: 'all',
     expandedCategories: new Set(), // Track expanded tree nodes
     isRunning: false,
     abortRequested: false,
     isTauri: false,
-    wasmModule: null,
+    wasmWorker: null, // Web Worker for WASM benchmarks
     wasmSimdLevel: 'scalar', // 'scalar' or 'simd128'
     wasmSimd128Available: false, // whether pkg-simd exists
     executionMode: 'native', // 'native' or 'wasm'
+    pendingWasmResolve: null, // Resolve function for pending WASM benchmark
 };
 
 // Check if running in Tauri (v2 API)
@@ -41,21 +42,71 @@ async function invoke(cmd, args = {}) {
     throw new Error('Tauri not available');
 }
 
-// Load WASM module from a specific path
-async function loadWasmFrom(pkgDir) {
-    try {
-        const wasmPath = `./${pkgDir}/vello_bench_wasm.js`;
-        console.log('Loading WASM from:', wasmPath);
+// Create WASM worker and set up message handlers
+function createWasmWorker() {
+    const worker = new Worker('worker.js', { type: 'module' });
 
-        const wasm = await import(wasmPath);
-        await wasm.default(); // Initialize the module
-        state.wasmModule = wasm;
-        console.log('WASM module loaded successfully from', pkgDir);
-        return true;
-    } catch (e) {
-        console.error('Failed to load WASM module from', pkgDir, ':', e);
-        return false;
+    worker.onmessage = (e) => {
+        const { type, ...data } = e.data;
+
+        switch (type) {
+            case 'result':
+                if (state.pendingWasmResolve) {
+                    state.pendingWasmResolve(data.result);
+                    state.pendingWasmResolve = null;
+                }
+                break;
+
+            case 'error':
+                console.error('Worker error:', data.error);
+                if (state.pendingWasmResolve) {
+                    state.pendingWasmResolve(null);
+                    state.pendingWasmResolve = null;
+                }
+                break;
+
+            case 'benchmarks':
+                if (state.pendingWasmResolve) {
+                    state.pendingWasmResolve(data.benchmarks);
+                    state.pendingWasmResolve = null;
+                }
+                break;
+
+            case 'platformInfo':
+                if (state.pendingWasmResolve) {
+                    state.pendingWasmResolve(data.info);
+                    state.pendingWasmResolve = null;
+                }
+                break;
+        }
+    };
+
+    worker.onerror = (e) => {
+        console.error('Worker error:', e);
+    };
+
+    state.wasmWorker = worker;
+}
+
+// Load WASM in worker from a specific path
+async function loadWasmFrom(pkgDir) {
+    console.log('Loading WASM in worker from:', pkgDir);
+
+    if (!state.wasmWorker) {
+        createWasmWorker();
     }
+
+    return new Promise((resolve) => {
+        const handler = (e) => {
+            if (e.data.type === 'loaded') {
+                state.wasmWorker.removeEventListener('message', handler);
+                console.log('WASM loaded in worker:', e.data.success);
+                resolve(e.data.success);
+            }
+        };
+        state.wasmWorker.addEventListener('message', handler);
+        state.wasmWorker.postMessage({ type: 'load', pkgDir });
+    });
 }
 
 // Check if SIMD128 WASM build is available
@@ -74,7 +125,7 @@ async function loadWasm() {
     state.wasmSimd128Available = await checkSimd128Available();
     console.log('WASM SIMD128 available:', state.wasmSimd128Available);
 
-    // Load scalar version by default, or SIMD128 if available and preferred
+    // Load SIMD128 if available, otherwise scalar
     const pkgDir = state.wasmSimd128Available ? 'pkg-simd' : 'pkg';
     state.wasmSimdLevel = state.wasmSimd128Available ? 'simd128' : 'scalar';
     return await loadWasmFrom(pkgDir);
@@ -122,8 +173,13 @@ async function init() {
 
     if (!state.isTauri && !wasmLoaded) {
         document.getElementById('benchmark-tbody').innerHTML =
-            '<tr><td colspan="7" class="no-results">Failed to load WASM module. Make sure to build it with: ./scripts/build-wasm.sh</td></tr>';
+            '<tr><td colspan="5" class="no-results">Failed to load WASM module. Make sure to build it with: ./scripts/build-wasm.sh</td></tr>';
         return;
+    }
+
+    // For WASM-only mode, set execution mode
+    if (!state.isTauri) {
+        state.executionMode = 'wasm';
     }
 
     // Load platform info
@@ -145,8 +201,11 @@ async function loadPlatformInfo() {
         let info;
         if (state.executionMode === 'native' && state.isTauri) {
             info = await invoke('get_platform_info');
-        } else if (state.wasmModule) {
-            info = state.wasmModule.get_platform_info();
+        } else if (state.wasmWorker) {
+            info = await new Promise((resolve) => {
+                state.pendingWasmResolve = resolve;
+                state.wasmWorker.postMessage({ type: 'platform' });
+            });
         } else {
             info = { arch: 'unknown', os: 'unknown', simd_features: ['unknown'] };
         }
@@ -196,8 +255,11 @@ async function loadBenchmarks() {
     try {
         if (state.executionMode === 'native' && state.isTauri) {
             state.benchmarks = await invoke('list_benchmarks');
-        } else if (state.wasmModule) {
-            state.benchmarks = state.wasmModule.list_benchmarks();
+        } else if (state.wasmWorker) {
+            state.benchmarks = await new Promise((resolve) => {
+                state.pendingWasmResolve = resolve;
+                state.wasmWorker.postMessage({ type: 'list' });
+            });
         } else {
             state.benchmarks = [];
         }
@@ -307,7 +369,7 @@ function renderBenchmarks() {
     }
 
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="no-results">No benchmarks available.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="no-results">No benchmarks available.</td></tr>';
         return;
     }
 
@@ -318,8 +380,8 @@ function renderBenchmarks() {
         let status = 'idle';
         let statusText = 'idle';
         if (state.runningBenchmark === bench.id) {
-            status = state.runningPhase === 'warmup' ? 'warmup' : 'running';
-            statusText = state.runningPhase === 'warmup' ? 'warmup' : 'measuring';
+            status = state.runningPhase === 'calibrating' ? 'calibrating' : 'running';
+            statusText = state.runningPhase;
         } else if (state.queuedBenchmarks.has(bench.id)) {
             status = 'queued';
             statusText = 'queued';
@@ -329,11 +391,9 @@ function renderBenchmarks() {
         }
 
         let meanStr = '-';
-        let itersStr = '-';
         if (result) {
             const { mean, unit } = formatTime(result.statistics.mean_ns);
             meanStr = `${mean.toFixed(3)} ${unit}`;
-            itersStr = result.statistics.iterations.toLocaleString();
         }
 
         const rowClasses = [status];
@@ -348,7 +408,6 @@ function renderBenchmarks() {
                 <td class="col-category">${bench.category}</td>
                 <td class="col-status"><span class="status-badge ${status}">${statusText}</span></td>
                 <td class="col-mean"><span class="result-mean">${meanStr}</span></td>
-                <td class="col-iters"><span class="result-iters">${itersStr}</span></td>
             </tr>
         `;
     }).join('');
@@ -381,25 +440,25 @@ function renderResults() {
 }
 
 // Run a single benchmark
-async function runSingleBenchmark(id, warmup, measurement) {
+async function runSingleBenchmark(id, measurement) {
     const simdLevel = document.getElementById('simd-level').value;
 
     if (state.executionMode === 'native' && state.isTauri) {
         return await invoke('run_benchmark', {
             id: id,
             simdLevel: simdLevel,
-            warmupMs: warmup,
+            warmupMs: 0, // Unused - calibration handles warmup
             measurementMs: measurement,
         });
-    } else if (state.wasmModule) {
-        // WASM benchmarks run synchronously but we wrap in a promise
-        // to allow UI updates between benchmarks
+    } else if (state.wasmWorker) {
+        // WASM benchmarks run in a Web Worker to avoid blocking the UI
         return new Promise((resolve) => {
-            // Use setTimeout to allow UI to update
-            setTimeout(() => {
-                const result = state.wasmModule.run_benchmark(id, BigInt(warmup), BigInt(measurement));
-                resolve(result);
-            }, 10);
+            state.pendingWasmResolve = resolve;
+            state.wasmWorker.postMessage({
+                type: 'run',
+                id: id,
+                measurementMs: measurement,
+            });
         });
     }
     return null;
@@ -431,8 +490,7 @@ async function runBenchmarks(ids) {
     renderBenchmarks();
     updateRunButtons();
 
-    const warmup = 1500;     // Hardcoded warmup time in ms
-    const measurement = 4000; // Hardcoded measurement time in ms
+    const measurement = 6000; // Measurement time in ms
 
     for (const id of ids) {
         // Check for abort
@@ -441,24 +499,26 @@ async function runBenchmarks(ids) {
             break;
         }
 
-        // Move from queued to running (warmup phase first)
+        // Move from queued to running (calibration phase first)
         state.queuedBenchmarks.delete(id);
         state.runningBenchmark = id;
-        state.runningPhase = 'warmup';
+        state.runningPhase = 'calibrating';
         renderBenchmarks();
 
-        // Set timer to transition to measuring phase
+        // Set timer to transition to measuring phase after estimated calibration (~1.5s)
         const phaseTimer = setTimeout(() => {
-            state.runningPhase = 'measuring';
-            renderBenchmarks();
-        }, warmup);
+            if (state.runningBenchmark === id && state.runningPhase === 'calibrating') {
+                state.runningPhase = 'measuring';
+                renderBenchmarks();
+            }
+        }, 1500);
 
         // Allow UI to update
         await new Promise(resolve => setTimeout(resolve, 0));
 
         try {
             console.log('Running benchmark:', id);
-            const result = await runSingleBenchmark(id, warmup, measurement);
+            const result = await runSingleBenchmark(id, measurement);
             console.log('Result:', result);
 
             if (result) {

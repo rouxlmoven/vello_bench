@@ -5,7 +5,6 @@
 
 pub mod fine;
 pub mod flatten;
-pub mod integration;
 pub mod strip;
 pub mod tile;
 
@@ -20,7 +19,6 @@ pub fn register_all() {
     flatten::register();
     strip::register();
     fine::register();
-    integration::register();
 }
 
 /// Run all benchmarks (for CLI compatibility).
@@ -51,17 +49,11 @@ pub fn run_all_benchmarks() {
     section("Fine - Gradient");
     fine::gradient::run_benchmarks();
 
-    section("Fine - Rounded Blurred Rect");
-    fine::rounded_blurred_rect::run_benchmarks();
-
     section("Fine - Blend");
     fine::blend::run_benchmarks();
 
     section("Fine - Image");
     fine::image::run_benchmarks();
-
-    section("Integration");
-    integration::run_benchmarks();
 
     println!("\n{}", "=".repeat(70));
     println!("Benchmarks complete.");

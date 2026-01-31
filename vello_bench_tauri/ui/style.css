@@ -285,7 +285,7 @@ input[type="number"] {
     background: rgba(255, 152, 0, 0.15);
 }
 
-.benchmark-table tbody tr.warmup {
+.benchmark-table tbody tr.calibrating {
     background: rgba(156, 39, 176, 0.15);
 }
 
@@ -299,7 +299,6 @@ input[type="number"] {
 .col-category { min-width: 100px; }
 .col-status { width: 80px; }
 .col-mean { width: 100px; text-align: right; }
-.col-iters { width: 100px; text-align: right; }
 
 /* Checkbox */
 .row-checkbox {
@@ -327,7 +326,7 @@ input[type="number"] {
     color: #000;
 }
 
-.status-badge.warmup {
+.status-badge.calibrating {
     background: var(--warmup);
     color: #fff;
     animation: pulse 1.5s infinite;
@@ -353,11 +352,6 @@ input[type="number"] {
 .result-mean {
     font-family: monospace;
     color: var(--success);
-}
-
-.result-iters {
-    font-family: monospace;
-    color: var(--text-secondary);
 }
 
 .no-results {

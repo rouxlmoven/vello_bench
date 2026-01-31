@@ -17,23 +17,22 @@ use vello_common::{flatten, strip};
 
 static DATA: OnceLock<Vec<DataItem>> = OnceLock::new();
 
+// Embed the Ghostscript Tiger SVG for both native and WASM builds
+const TIGER_SVG: &[u8] = include_bytes!("../assets/Ghostscript_Tiger.svg");
+
 /// Get all data items for benchmarking.
-/// On WASM, this returns an empty slice since file system access is not available.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn get_data_items() -> &'static [DataItem] {
     DATA.get_or_init(|| {
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let base_dir = Path::new(manifest_dir).parent().unwrap();
         let data_dir = base_dir.join("data");
-        let assets_dir = base_dir.join("assets");
         let mut data = vec![];
 
-        // Always use ghostscript tiger.
-        let tiger_path = assets_dir.join("Ghostscript_Tiger.svg");
-        if tiger_path.exists() {
-            data.push(DataItem::from_path(&tiger_path));
-        }
+        // Always use embedded ghostscript tiger for consistency
+        data.push(DataItem::from_svg_data("Ghostscript_Tiger", TIGER_SVG));
 
+        // Also load any additional SVG files from the data directory
         if data_dir.exists() {
             for entry in std::fs::read_dir(&data_dir).unwrap() {
                 let entry = entry.unwrap();
@@ -49,12 +48,13 @@ pub fn get_data_items() -> &'static [DataItem] {
     })
 }
 
+/// Get all data items for benchmarking (WASM version).
+/// Uses embedded assets since file system access is not available.
 #[cfg(target_arch = "wasm32")]
 pub fn get_data_items() -> &'static [DataItem] {
-    // On WASM, we can't access the file system
-    // Data would need to be loaded differently (embedded or fetched)
-    static EMPTY: &[DataItem] = &[];
-    EMPTY
+    DATA.get_or_init(|| {
+        vec![DataItem::from_svg_data("Ghostscript_Tiger", TIGER_SVG)]
+    })
 }
 
 #[derive(Clone, Debug)]

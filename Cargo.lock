@@ -4152,6 +4152,7 @@ name = "vello_bench_core"
 version = "0.0.0"
 dependencies = [
  "image",
+ "js-sys",
  "rand 0.9.2",
  "serde",
  "smallvec",
@@ -4159,6 +4160,7 @@ dependencies = [
  "vello_bench_macros",
  "vello_common",
  "vello_cpu",
+ "wasm-bindgen",
  "web-sys",
 ]
 
@@ -4193,6 +4195,7 @@ version = "0.0.0"
 dependencies = [
  "console_error_panic_hook",
  "image",
+ "rand 0.9.2",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",

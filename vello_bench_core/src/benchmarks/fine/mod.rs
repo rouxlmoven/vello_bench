@@ -6,7 +6,6 @@ pub mod fill;
 pub mod gradient;
 pub mod image;
 pub mod pack;
-pub mod rounded_blurred_rect;
 pub mod strip;
 
 use vello_common::peniko::{BlendMode, Compose, Mix};

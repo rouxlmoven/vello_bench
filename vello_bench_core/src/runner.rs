@@ -19,10 +19,10 @@ impl BenchRunner {
         Self { measurement_ms }
     }
 
-    /// Create a runner with default timing (4s measurement).
+    /// Create a runner with default timing (6s measurement).
     pub fn default_timing() -> Self {
         Self {
-            measurement_ms: 4000,
+            measurement_ms: 6000,
         }
     }
 
@@ -64,8 +64,8 @@ impl BenchRunner {
         Statistics::from_measurement(elapsed_ns, total_iters)
     }
 
-    /// Run a benchmark using the provided timer.
-    fn run_with_timer<F, T: Timer>(
+    /// Run a benchmark using the provided timer, with optional callback after calibration.
+    fn run_with_timer<F, T: Timer, C: FnOnce()>(
         &self,
         timer: &T,
         id: &str,
@@ -73,12 +73,16 @@ impl BenchRunner {
         name: &str,
         simd_variant: &str,
         mut f: F,
+        on_calibrated: C,
     ) -> BenchmarkResult
     where
         F: FnMut(),
     {
         // Calibration phase: find batch size that takes ~500ms
         let (batch_size, batch_time_ns) = Self::calibrate(timer, &mut f);
+
+        // Notify that calibration is complete
+        on_calibrated();
 
         // Calculate iterations needed for target measurement time
         let target_ns = self.measurement_ms as f64 * 1_000_000.0;
@@ -105,7 +109,17 @@ impl BenchRunner {
     where
         F: FnMut(),
     {
-        self.run_with_timer(&NativeTimer, id, category, name, simd_variant, f)
+        self.run_with_timer(&NativeTimer, id, category, name, simd_variant, f, || {})
+    }
+
+    /// Run a benchmark with a callback when calibration completes.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn run_with_callback<F, C>(&self, id: &str, category: &str, name: &str, simd_variant: &str, f: F, on_calibrated: C) -> BenchmarkResult
+    where
+        F: FnMut(),
+        C: FnOnce(),
+    {
+        self.run_with_timer(&NativeTimer, id, category, name, simd_variant, f, on_calibrated)
     }
 
     /// Run a benchmark and return the result (WASM version).
@@ -114,7 +128,17 @@ impl BenchRunner {
     where
         F: FnMut(),
     {
-        self.run_with_timer(&WasmTimer::new(), id, category, name, simd_variant, f)
+        self.run_with_timer(&WasmTimer::new(), id, category, name, simd_variant, f, || {})
+    }
+
+    /// Run a benchmark with a callback when calibration completes (WASM version).
+    #[cfg(target_arch = "wasm32")]
+    pub fn run_with_callback<F, C>(&self, id: &str, category: &str, name: &str, simd_variant: &str, f: F, on_calibrated: C) -> BenchmarkResult
+    where
+        F: FnMut(),
+        C: FnOnce(),
+    {
+        self.run_with_timer(&WasmTimer::new(), id, category, name, simd_variant, f, on_calibrated)
     }
 }
 
@@ -158,6 +182,7 @@ impl Timer for NativeTimer {
 }
 
 /// WASM timer using Performance API.
+/// Works in both Window and Worker contexts.
 #[cfg(target_arch = "wasm32")]
 struct WasmTimer {
     performance: web_sys::Performance,
@@ -166,12 +191,15 @@ struct WasmTimer {
 #[cfg(target_arch = "wasm32")]
 impl WasmTimer {
     fn new() -> Self {
-        Self {
-            performance: web_sys::window()
-                .expect("no window")
-                .performance()
-                .expect("no performance"),
-        }
+        use wasm_bindgen::JsCast;
+
+        // Use js_sys::global() which works in both Window and Worker contexts
+        let global = js_sys::global();
+        let performance = js_sys::Reflect::get(&global, &wasm_bindgen::JsValue::from_str("performance"))
+            .expect("no performance on global")
+            .unchecked_into::<web_sys::Performance>();
+
+        Self { performance }
     }
 }
 
