@@ -8,22 +8,18 @@ rust-version = "1.85"
 license = "Apache-2.0 OR MIT"
 publish = false
 
+[workspace]
+members = [".", "vello_bench_macros"]
+
 [dependencies]
 vello_common = { path = "../vello/sparse_strips/vello_common" }
 vello_cpu = { path = "../vello/sparse_strips/vello_cpu" }
-vello_dev_macros = { path = "../vello/sparse_strips/vello_dev_macros" }
-criterion = { version = "0.5", default-features = false }
+vello_bench_macros = { path = "vello_bench_macros" }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
-parley = { version = "0.5.0", default-features = true }
+parley = { version = "0.7.0", default-features = true }
 rand = { version = "0.9", default-features = false, features = ["std", "std_rng"] }
 smallvec = "1.14"
 usvg = { version = "0.45", default-features = false }
-
-[features]
-
-[[bench]]
-name = "main"
-harness = false
 
 [lints.rust]
 unsafe_code = "deny"

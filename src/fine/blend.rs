@@ -1,201 +1,103 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::fine::fill_single;
-use criterion::{Bencher, Criterion};
+use crate::run_bench;
 use vello_common::coarse::WideTile;
 use vello_common::color::palette::css::ROYAL_BLUE;
-use vello_common::fearless_simd::Simd;
 use vello_common::paint::{Paint, PremulColor};
 use vello_common::peniko::{BlendMode, Compose, Mix};
-use vello_cpu::fine::{Fine, FineKernel};
-use vello_dev_macros::vello_bench;
+use vello_cpu::Level;
+use vello_cpu::fine::{Fine, U8Kernel};
 
-pub fn blend(c: &mut Criterion) {
-    normal(c);
-    multiply(c);
-    screen(c);
-    overlay(c);
-    darken(c);
-    lighten(c);
-    color_dodge(c);
-    color_burn(c);
-    hard_light(c);
-    soft_light(c);
-    difference(c);
-    exclusion(c);
-    hue(c);
-    saturation(c);
-    color(c);
-    luminosity(c);
-
-    clear(c);
-    copy(c);
-    dest(c);
-    dest_over(c);
-    src_out(c);
-    src_in(c);
-    dest_in(c);
-    dest_out(c);
-    src_atop(c);
-    dest_atop(c);
-    xor(c);
-    plus(c);
-    plus_lighter(c);
-}
-
-#[vello_bench]
-fn normal<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Normal, Compose::SrcOver));
-}
-
-#[vello_bench]
-fn multiply<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Multiply, Compose::SrcOver));
-}
-
-#[vello_bench]
-fn screen<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Screen, Compose::SrcOver));
-}
-
-#[vello_bench]
-fn overlay<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Overlay, Compose::SrcOver));
-}
-
-#[vello_bench]
-fn darken<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Darken, Compose::SrcOver));
-}
-
-#[vello_bench]
-fn lighten<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Lighten, Compose::SrcOver));
-}
-
-#[vello_bench]
-fn color_dodge<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::ColorDodge, Compose::SrcOver));
-}
-
-#[vello_bench]
-fn color_burn<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::ColorBurn, Compose::SrcOver));
-}
-
-#[vello_bench]
-fn hard_light<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::HardLight, Compose::SrcOver));
-}
-
-#[vello_bench]
-fn soft_light<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::SoftLight, Compose::SrcOver));
-}
-
-#[vello_bench]
-fn difference<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Difference, Compose::SrcOver));
-}
-
-#[vello_bench]
-fn exclusion<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Exclusion, Compose::SrcOver));
-}
-
-#[vello_bench]
-fn hue<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Hue, Compose::SrcOver));
-}
-
-#[vello_bench]
-fn saturation<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Saturation, Compose::SrcOver));
-}
-
-#[vello_bench]
-fn color<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Color, Compose::SrcOver));
-}
-
-#[vello_bench]
-fn luminosity<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Luminosity, Compose::SrcOver));
-}
-
-#[vello_bench]
-fn clear<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Normal, Compose::Clear));
-}
-
-#[vello_bench]
-fn copy<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Normal, Compose::Copy));
-}
-
-#[vello_bench]
-fn dest<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Normal, Compose::Dest));
-}
-
-#[vello_bench]
-fn dest_over<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Normal, Compose::DestOver));
-}
-
-#[vello_bench]
-fn src_in<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Normal, Compose::SrcIn));
-}
-
-#[vello_bench]
-fn dest_in<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Normal, Compose::DestIn));
-}
-
-#[vello_bench]
-fn src_out<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Normal, Compose::SrcOut));
-}
-
-#[vello_bench]
-fn dest_out<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Normal, Compose::DestOut));
-}
-
-#[vello_bench]
-fn src_atop<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Normal, Compose::SrcAtop));
-}
-
-#[vello_bench]
-fn dest_atop<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Normal, Compose::DestAtop));
-}
-
-#[vello_bench]
-fn xor<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Normal, Compose::Xor));
-}
-
-#[vello_bench]
-fn plus<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Normal, Compose::Plus));
-}
-
-#[vello_bench]
-fn plus_lighter<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>) {
-    base(b, fine, BlendMode::new(Mix::Normal, Compose::PlusLighter));
-}
-
-fn base<S: Simd, T: FineKernel<S>>(
-    b: &mut Bencher<'_>,
-    fine: &mut Fine<S, T>,
-    blend_mode: BlendMode,
-) {
+pub fn run_benchmarks() {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE));
     let width = WideTile::WIDTH as usize;
 
-    fill_single(&paint, &[], width, b, blend_mode, fine);
+    // Get the best available SIMD level
+    let level = Level::new();
+
+    // Mix modes
+    let mix_modes = [
+        ("normal", Mix::Normal),
+        ("multiply", Mix::Multiply),
+        ("screen", Mix::Screen),
+        ("overlay", Mix::Overlay),
+        ("darken", Mix::Darken),
+        ("lighten", Mix::Lighten),
+        ("color_dodge", Mix::ColorDodge),
+        ("color_burn", Mix::ColorBurn),
+        ("hard_light", Mix::HardLight),
+        ("soft_light", Mix::SoftLight),
+        ("difference", Mix::Difference),
+        ("exclusion", Mix::Exclusion),
+        ("hue", Mix::Hue),
+        ("saturation", Mix::Saturation),
+        ("color", Mix::Color),
+        ("luminosity", Mix::Luminosity),
+    ];
+
+    #[cfg(target_arch = "aarch64")]
+    if let Some(neon) = level.as_neon() {
+        let mut fine = Fine::<_, U8Kernel>::new(neon);
+        for (name, mix) in mix_modes {
+            let blend_mode = BlendMode::new(mix, Compose::SrcOver);
+            run_bench(&format!("fine/blend/{}_u8_neon", name), || {
+                fine.fill(0, width, &paint, blend_mode, &[], None, None);
+                std::hint::black_box(&fine);
+            });
+        }
+    }
+
+    #[cfg(target_arch = "x86_64")]
+    if let Some(avx2) = level.as_avx2() {
+        let mut fine = Fine::<_, U8Kernel>::new(avx2);
+        for (name, mix) in mix_modes {
+            let blend_mode = BlendMode::new(mix, Compose::SrcOver);
+            run_bench(&format!("fine/blend/{}_u8_avx2", name), || {
+                fine.fill(0, width, &paint, blend_mode, &[], None, None);
+                std::hint::black_box(&fine);
+            });
+        }
+    } else if let Some(sse42) = level.as_sse42() {
+        let mut fine = Fine::<_, U8Kernel>::new(sse42);
+        for (name, mix) in mix_modes {
+            let blend_mode = BlendMode::new(mix, Compose::SrcOver);
+            run_bench(&format!("fine/blend/{}_u8_sse42", name), || {
+                fine.fill(0, width, &paint, blend_mode, &[], None, None);
+                std::hint::black_box(&fine);
+            });
+        }
+    }
+
+    // Compose modes (just run a few key ones to keep benchmark time reasonable)
+    let compose_modes = [
+        ("src_over", Compose::SrcOver),
+        ("src_in", Compose::SrcIn),
+        ("dest_over", Compose::DestOver),
+        ("xor", Compose::Xor),
+    ];
+
+    #[cfg(target_arch = "aarch64")]
+    if let Some(neon) = level.as_neon() {
+        let mut fine = Fine::<_, U8Kernel>::new(neon);
+        for (name, compose) in compose_modes {
+            let blend_mode = BlendMode::new(Mix::Normal, compose);
+            run_bench(&format!("fine/blend/{}_u8_neon", name), || {
+                fine.fill(0, width, &paint, blend_mode, &[], None, None);
+                std::hint::black_box(&fine);
+            });
+        }
+    }
+
+    #[cfg(target_arch = "x86_64")]
+    if let Some(avx2) = level.as_avx2() {
+        let mut fine = Fine::<_, U8Kernel>::new(avx2);
+        for (name, compose) in compose_modes {
+            let blend_mode = BlendMode::new(Mix::Normal, compose);
+            run_bench(&format!("fine/blend/{}_u8_avx2", name), || {
+                fine.fill(0, width, &paint, blend_mode, &[], None, None);
+                std::hint::black_box(&fine);
+            });
+        }
+    }
 }

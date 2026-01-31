@@ -2,28 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::data::get_data_items;
-use criterion::Criterion;
+use crate::run_bench;
 use vello_common::tile::Tiles;
 use vello_cpu::Level;
 
-pub fn tile(c: &mut Criterion) {
-    let mut g = c.benchmark_group("tile");
-    g.sample_size(50);
-
-    macro_rules! tile_single {
-        ($item:expr) => {
-            let lines = $item.lines();
-
-            g.bench_function($item.name.clone(), |b| {
-                b.iter(|| {
-                    let mut tiler = Tiles::new(Level::new());
-                    tiler.make_tiles_analytic_aa(&lines, $item.width, $item.height);
-                })
-            });
-        };
-    }
-
+pub fn run_benchmarks() {
     for item in get_data_items() {
-        tile_single!(item);
+        let lines = item.lines();
+        let name = format!("tile/{}", item.name);
+
+        run_bench(&name, || {
+            let mut tiler = Tiles::new(Level::new());
+            tiler.make_tiles_analytic_aa(&lines, item.width, item.height);
+            std::hint::black_box(&tiler);
+        });
     }
 }
