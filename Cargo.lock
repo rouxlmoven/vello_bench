@@ -4177,16 +4177,11 @@ dependencies = [
 name = "vello_bench_tauri"
 version = "0.1.0"
 dependencies = [
- "image",
  "serde",
- "serde_json",
- "smallvec",
  "tauri",
  "tauri-build",
  "tokio",
  "vello_bench_core",
- "vello_common",
- "vello_cpu",
 ]
 
 [[package]]
@@ -4194,17 +4189,10 @@ name = "vello_bench_wasm"
 version = "0.0.0"
 dependencies = [
  "console_error_panic_hook",
- "image",
- "rand 0.9.2",
- "serde",
  "serde-wasm-bindgen",
  "serde_json",
- "smallvec",
  "vello_bench_core",
- "vello_common",
- "vello_cpu",
  "wasm-bindgen",
- "web-sys",
 ]
 
 [[package]]

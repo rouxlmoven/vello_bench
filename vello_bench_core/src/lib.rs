@@ -11,12 +11,14 @@
 
 pub mod benchmarks;
 pub mod data;
+pub mod dispatch;
 pub mod registry;
 pub mod result;
 pub mod runner;
 pub mod simd;
 
 // Re-export commonly used items
+pub use dispatch::{get_benchmark_list, run_benchmark_by_id, BenchmarkInfo};
 pub use registry::{list_benchmarks, register, run_benchmark, BenchmarkMetadata, REGISTRY};
 pub use result::{BenchmarkResult, PlatformInfo, Statistics};
 pub use runner::BenchRunner;
