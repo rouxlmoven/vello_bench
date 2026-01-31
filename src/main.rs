@@ -11,7 +11,6 @@ use std::time::{Duration, Instant};
 mod data;
 mod fine;
 mod flatten;
-mod glyph;
 mod integration;
 mod strip;
 mod tile;
@@ -131,9 +130,6 @@ fn main() {
 
     section("Strip Rendering");
     strip::run_benchmarks();
-
-    section("Glyph");
-    glyph::run_benchmarks();
 
     section("Fine - Fill");
     fine::fill::run_benchmarks();
