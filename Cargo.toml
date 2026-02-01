@@ -1,31 +1,12 @@
-[package]
-name = "vello_bench"
-description = "Benchmarking harness for sparse strips."
-categories = ["rendering", "graphics"]
-keywords = ["2d", "vector-graphics"]
-edition = "2024"
-rust-version = "1.85"
-license = "Apache-2.0 OR MIT"
-publish = false
-
 [workspace]
 members = [
-    ".",
     "vello_bench_macros",
     "vello_bench_core",
     "vello_bench_cli",
     "vello_bench_wasm",
     "vello_bench_tauri",
 ]
+resolver = "2"
 
-[dependencies]
-vello_common = { path = "../vello/sparse_strips/vello_common" }
-vello_cpu = { path = "../vello/sparse_strips/vello_cpu" }
-vello_bench_macros = { path = "vello_bench_macros" }
-image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
-rand = { version = "0.9", default-features = false, features = ["std", "std_rng"] }
-smallvec = "1.14"
-usvg = { version = "0.45", default-features = false }
-
-[lints.rust]
+[workspace.lints.rust]
 unsafe_code = "deny"
