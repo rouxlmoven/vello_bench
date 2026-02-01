@@ -4160,13 +4160,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vello_bench_cli"
-version = "0.0.0"
-dependencies = [
- "vello_bench_core",
-]
-
-[[package]]
 name = "vello_bench_core"
 version = "0.0.0"
 dependencies = [

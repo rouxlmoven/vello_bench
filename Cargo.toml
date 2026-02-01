@@ -2,7 +2,6 @@
 members = [
     "vello_bench_macros",
     "vello_bench_core",
-    "vello_bench_cli",
     "vello_bench_wasm",
     "vello_bench_tauri",
 ]
