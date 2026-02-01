@@ -7,12 +7,6 @@ pub mod image;
 pub mod pack;
 pub mod strip;
 
-use vello_common::peniko::{BlendMode, Compose, Mix};
-
-pub(crate) fn default_blend() -> BlendMode {
-    BlendMode::new(Mix::Normal, Compose::SrcOver)
-}
-
 pub fn register() {
     // Registration would go here for the registry-based approach
 }

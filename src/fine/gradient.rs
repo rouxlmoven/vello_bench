@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::SEED;
-use crate::fine::default_blend;
 use rand::prelude::StdRng;
 use rand::{Rng, SeedableRng};
 use smallvec::{SmallVec, smallvec};
@@ -14,7 +13,7 @@ use vello_common::encode::EncodeExt;
 use vello_common::fearless_simd::Simd;
 use vello_common::kurbo::{Affine, Point};
 use vello_common::peniko;
-use vello_common::peniko::{ColorStop, ColorStops, Gradient, GradientKind};
+use vello_common::peniko::{BlendMode, ColorStop, ColorStops, Gradient, GradientKind};
 use vello_common::tile::Tile;
 use vello_cpu::fine::{Fine, FineKernel};
 use vello_cpu::peniko::{LinearGradientPosition, RadialGradientPosition, SweepGradientPosition};
@@ -102,7 +101,7 @@ fn linear_opaque<S: Simd, T: FineKernel<S>>(fine: &mut Fine<S, T>) {
         0,
         WideTile::WIDTH as usize,
         &paint,
-        default_blend(),
+        BlendMode::default(),
         &paints,
         None,
         None,
@@ -133,7 +132,7 @@ fn radial_opaque<S: Simd, T: FineKernel<S>>(fine: &mut Fine<S, T>) {
         0,
         WideTile::WIDTH as usize,
         &paint,
-        default_blend(),
+        BlendMode::default(),
         &paints,
         None,
         None,
@@ -163,7 +162,7 @@ fn sweep_opaque<S: Simd, T: FineKernel<S>>(fine: &mut Fine<S, T>) {
         0,
         WideTile::WIDTH as usize,
         &paint,
-        default_blend(),
+        BlendMode::default(),
         &paints,
         None,
         None,
@@ -192,7 +191,7 @@ fn gradient_many_stops<S: Simd, T: FineKernel<S>>(fine: &mut Fine<S, T>) {
         0,
         WideTile::WIDTH as usize,
         &paint,
-        default_blend(),
+        BlendMode::default(),
         &paints,
         None,
         None,
@@ -221,7 +220,7 @@ fn gradient_transparent<S: Simd, T: FineKernel<S>>(fine: &mut Fine<S, T>) {
         0,
         WideTile::WIDTH as usize,
         &paint,
-        default_blend(),
+        BlendMode::default(),
         &paints,
         None,
         None,

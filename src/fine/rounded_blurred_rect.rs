@@ -1,7 +1,6 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::fine::default_blend;
 use vello_bench_macros::vello_bench;
 use vello_common::blurred_rounded_rect::BlurredRoundedRectangle;
 use vello_common::coarse::WideTile;
@@ -9,6 +8,7 @@ use vello_common::color::palette::css::GREEN;
 use vello_common::encode::EncodeExt;
 use vello_common::fearless_simd::Simd;
 use vello_common::kurbo::{Affine, Point, Rect};
+use vello_common::peniko::BlendMode;
 use vello_common::tile::Tile;
 use vello_cpu::fine::{Fine, FineKernel};
 
@@ -27,7 +27,7 @@ fn no_transform<S: Simd, T: FineKernel<S>>(fine: &mut Fine<S, T>) {
         0,
         WideTile::WIDTH as usize,
         &paint,
-        default_blend(),
+        BlendMode::default(),
         &paints,
         None,
         None,
@@ -51,7 +51,7 @@ fn with_transform<S: Simd, T: FineKernel<S>>(fine: &mut Fine<S, T>) {
         0,
         WideTile::WIDTH as usize,
         &paint,
-        default_blend(),
+        BlendMode::default(),
         &paints,
         None,
         None,

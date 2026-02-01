@@ -3,7 +3,6 @@
 
 use std::sync::Arc;
 
-use crate::fine::default_blend;
 use vello_bench_macros::vello_bench;
 use vello_common::coarse::WideTile;
 use vello_common::encode::EncodeExt;
@@ -11,8 +10,7 @@ use vello_common::fearless_simd::Simd;
 use vello_common::kurbo::{Affine, Point};
 use vello_common::paint::{Image, ImageSource};
 use vello_common::peniko;
-use vello_common::peniko::ImageQuality;
-use vello_common::peniko::ImageSampler;
+use vello_common::peniko::{BlendMode, ImageQuality, ImageSampler};
 use vello_common::pixmap::Pixmap;
 use vello_common::tile::Tile;
 use vello_cpu::fine::{Fine, FineKernel};
@@ -57,7 +55,7 @@ fn image_no_transform<S: Simd, T: FineKernel<S>>(fine: &mut Fine<S, T>) {
         0,
         WideTile::WIDTH as usize,
         &paint,
-        default_blend(),
+        BlendMode::default(),
         &paints,
         None,
         None,
@@ -75,7 +73,7 @@ fn image_scale<S: Simd, T: FineKernel<S>>(fine: &mut Fine<S, T>) {
         0,
         WideTile::WIDTH as usize,
         &paint,
-        default_blend(),
+        BlendMode::default(),
         &paints,
         None,
         None,
@@ -99,7 +97,7 @@ fn image_rotate<S: Simd, T: FineKernel<S>>(fine: &mut Fine<S, T>) {
         0,
         WideTile::WIDTH as usize,
         &paint,
-        default_blend(),
+        BlendMode::default(),
         &paints,
         None,
         None,
@@ -117,7 +115,7 @@ fn image_quality_medium<S: Simd, T: FineKernel<S>>(fine: &mut Fine<S, T>) {
         0,
         WideTile::WIDTH as usize,
         &paint,
-        default_blend(),
+        BlendMode::default(),
         &paints,
         None,
         None,
@@ -135,7 +133,7 @@ fn image_quality_high<S: Simd, T: FineKernel<S>>(fine: &mut Fine<S, T>) {
         0,
         WideTile::WIDTH as usize,
         &paint,
-        default_blend(),
+        BlendMode::default(),
         &paints,
         None,
         None,
@@ -156,7 +154,7 @@ fn image_extend_repeat<S: Simd, T: FineKernel<S>>(fine: &mut Fine<S, T>) {
         0,
         WideTile::WIDTH as usize,
         &paint,
-        default_blend(),
+        BlendMode::default(),
         &paints,
         None,
         None,

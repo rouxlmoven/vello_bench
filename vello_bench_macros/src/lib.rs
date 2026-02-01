@@ -18,7 +18,7 @@ use syn::{ItemFn, parse_macro_input};
 /// #[vello_bench]
 /// pub fn transparent_short<S: Simd, T: FineKernel<S>>(fine: &mut Fine<S, T>) {
 ///     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE.with_alpha(0.3)));
-///     fine.fill(0, 32, &paint, default_blend(), &[], None, None);
+///     fine.fill(0, 32, &paint, BlendMode::default(), &[], None, None);
 ///     std::hint::black_box(&fine);
 /// }
 /// ```
