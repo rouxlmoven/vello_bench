@@ -26,7 +26,17 @@
                 </div>
                 <button id="run-btn" class="btn btn-primary">Run</button>
                 <button id="abort-btn" class="btn btn-abort" style="display: none;">Abort</button>
-                <button id="export-results" class="btn">Export</button>
+                <span class="control-separator"></span>
+                <button id="save-reference-btn" class="btn">Save Reference</button>
+                <div class="control-group">
+                    <label for="reference-select">Compare:</label>
+                    <select id="reference-select">
+                        <option value="">No reference</option>
+                    </select>
+                </div>
+                <button id="delete-reference-btn" class="btn btn-danger" disabled>Delete</button>
+                <span class="control-separator"></span>
+                <button id="export-results" class="btn">Export JSON</button>
             </div>
         </header>
 
@@ -51,6 +61,7 @@
                     <div class="benchmark-stats">
                         <span id="bench-count">0 benchmarks</span>
                         <span id="bench-completed">0 completed</span>
+                        <span id="reference-indicator" class="reference-indicator" style="display: none;"></span>
                     </div>
                 </div>
                 <div class="table-container">
@@ -69,6 +80,19 @@
                     </table>
                 </div>
             </main>
+        </div>
+    </div>
+
+    <!-- Save Reference Dialog -->
+    <div id="save-dialog" class="dialog-overlay" style="display: none;">
+        <div class="dialog">
+            <h3>Save Reference</h3>
+            <p>Enter a name for this reference:</p>
+            <input type="text" id="save-dialog-input" placeholder="e.g., baseline-v1">
+            <div class="dialog-buttons">
+                <button id="save-dialog-cancel" class="btn">Cancel</button>
+                <button id="save-dialog-confirm" class="btn btn-primary">Save</button>
+            </div>
         </div>
     </div>
 

@@ -17,6 +17,10 @@ fn main() {
             commands::get_simd_levels,
             commands::run_benchmark,
             commands::get_platform_info,
+            commands::save_reference,
+            commands::list_references,
+            commands::load_reference,
+            commands::delete_reference,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
