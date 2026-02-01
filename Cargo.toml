@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "vello_bench_macros",
     "vello_bench_core",
     "vello_bench_wasm",
     "vello_bench_tauri",

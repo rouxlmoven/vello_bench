@@ -4170,20 +4170,10 @@ dependencies = [
  "serde",
  "smallvec",
  "usvg",
- "vello_bench_macros",
  "vello_common",
  "vello_cpu",
  "wasm-bindgen",
  "web-sys",
-]
-
-[[package]]
-name = "vello_bench_macros"
-version = "0.0.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.114",
 ]
 
 [[package]]
