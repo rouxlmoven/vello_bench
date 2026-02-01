@@ -95,38 +95,41 @@ pub fn get_benchmark_list() -> Vec<BenchmarkInfo> {
     benchmarks
 }
 
-/// Run a benchmark by ID.
+/// Run a benchmark by ID with a specific SIMD level.
 /// Returns None if the benchmark ID is not found.
-pub fn run_benchmark_by_id(runner: &BenchRunner, id: &str) -> Option<BenchmarkResult> {
+pub fn run_benchmark_by_id(
+    runner: &BenchRunner,
+    id: &str,
+    simd_level: crate::SimdLevel,
+) -> Option<BenchmarkResult> {
     // Fine benchmarks
     if let Some(name) = id.strip_prefix("fine/fill/") {
-        return Some(run_fine_fill(runner, name));
+        return Some(run_fine_fill(runner, name, simd_level));
     }
     if let Some(name) = id.strip_prefix("fine/gradient/") {
-        return Some(run_fine_gradient(runner, name));
+        return Some(run_fine_gradient(runner, name, simd_level));
     }
     if let Some(name) = id.strip_prefix("fine/image/") {
-        return Some(run_fine_image(runner, name));
+        return Some(run_fine_image(runner, name, simd_level));
     }
     if let Some(name) = id.strip_prefix("fine/pack/") {
-        return Some(run_fine_pack(runner, name));
+        return Some(run_fine_pack(runner, name, simd_level));
     }
     if let Some(name) = id.strip_prefix("fine/strip/") {
-        return Some(run_fine_strip(runner, name));
+        return Some(run_fine_strip(runner, name, simd_level));
     }
-
     // Data-driven benchmarks
     if let Some(name) = id.strip_prefix("tile/") {
-        return run_tile(runner, name);
+        return run_tile(runner, name, simd_level);
     }
     if let Some(name) = id.strip_prefix("flatten/") {
-        return run_flatten(runner, name);
+        return run_flatten(runner, name, simd_level);
     }
     if let Some(name) = id.strip_prefix("strokes/") {
-        return run_strokes(runner, name);
+        return run_strokes(runner, name, simd_level);
     }
     if let Some(name) = id.strip_prefix("render_strips/") {
-        return run_render_strips(runner, name);
+        return run_render_strips(runner, name, simd_level);
     }
 
     None
@@ -136,9 +139,9 @@ pub fn run_benchmark_by_id(runner: &BenchRunner, id: &str) -> Option<BenchmarkRe
 // Fine/Fill benchmark
 // ============================================================================
 
-fn run_fine_fill(runner: &BenchRunner, name: &str) -> BenchmarkResult {
+fn run_fine_fill(runner: &BenchRunner, name: &str, simd_level: crate::SimdLevel) -> BenchmarkResult {
     use vello_common::color::palette::css::ROYAL_BLUE;
-    use vello_common::fearless_simd::Fallback;
+    use fearless_simd::dispatch;
     use vello_common::paint::{Paint, PremulColor};
     use vello_common::peniko::{BlendMode, Compose, Mix};
     use vello_cpu::fine::{Fine, U8Kernel};
@@ -153,34 +156,38 @@ fn run_fine_fill(runner: &BenchRunner, name: &str) -> BenchmarkResult {
     let alpha = if name.contains("transparent") { 0.3 } else { 1.0 };
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE.with_alpha(alpha)));
 
-    let simd_variant = get_simd_variant();
-    let mut fine = Fine::<_, U8Kernel>::new(Fallback::new());
+    let level = simd_level.to_level().unwrap_or_else(|| vello_cpu::Level::fallback());
+    let simd_variant = simd_level.suffix();
 
-    runner.run(
-        &format!("fine/fill/{}", name),
-        "fine/fill",
-        name,
-        simd_variant,
-        || {
-            fine.fill(0, width, &paint, blend, &[], None, None);
-            std::hint::black_box(&fine);
-        },
-    )
+    dispatch!(level, simd => {
+        let mut fine = Fine::<_, U8Kernel>::new(simd);
+
+        runner.run(
+            &format!("fine/fill/{}", name),
+            "fine/fill",
+            name,
+            simd_variant,
+            || {
+                fine.fill(0, width, &paint, blend, &[], None, None);
+                std::hint::black_box(&fine);
+            },
+        )
+    })
 }
 
 // ============================================================================
 // Fine/Gradient benchmark
 // ============================================================================
 
-fn run_fine_gradient(runner: &BenchRunner, name: &str) -> BenchmarkResult {
+fn run_fine_gradient(runner: &BenchRunner, name: &str, simd_level: crate::SimdLevel) -> BenchmarkResult {
     use rand::prelude::StdRng;
     use rand::{Rng, SeedableRng};
     use smallvec::{SmallVec, smallvec};
     use vello_common::coarse::WideTile;
     use vello_common::color::palette::css::{BLUE, GREEN, RED, YELLOW};
     use vello_common::color::{AlphaColor, DynamicColor, Srgb};
+    use fearless_simd::dispatch;
     use vello_common::encode::EncodeExt;
-    use vello_common::fearless_simd::Fallback;
     use vello_common::kurbo::{Affine, Point};
     use vello_common::peniko::{BlendMode, ColorStop, ColorStops, Compose, Gradient, GradientKind, Mix};
     use vello_common::tile::Tile;
@@ -248,30 +255,34 @@ fn run_fine_gradient(runner: &BenchRunner, name: &str) -> BenchmarkResult {
     let mut paints = vec![];
     let paint = grad.encode_into(&mut paints, Affine::IDENTITY);
 
-    let simd_variant = get_simd_variant();
-    let mut fine = Fine::<_, U8Kernel>::new(Fallback::new());
+    let level = simd_level.to_level().unwrap_or_else(|| vello_cpu::Level::fallback());
+    let simd_variant = simd_level.suffix();
 
-    runner.run(
-        &format!("fine/gradient/{}", name),
-        "fine/gradient",
-        name,
-        simd_variant,
-        || {
-            fine.fill(0, WideTile::WIDTH as usize, &paint, blend, &paints, None, None);
-            std::hint::black_box(&fine);
-        },
-    )
+    dispatch!(level, simd => {
+        let mut fine = Fine::<_, U8Kernel>::new(simd);
+
+        runner.run(
+            &format!("fine/gradient/{}", name),
+            "fine/gradient",
+            name,
+            simd_variant,
+            || {
+                fine.fill(0, WideTile::WIDTH as usize, &paint, blend, &paints, None, None);
+                std::hint::black_box(&fine);
+            },
+        )
+    })
 }
 
 // ============================================================================
 // Fine/Image benchmark
 // ============================================================================
 
-fn run_fine_image(runner: &BenchRunner, name: &str) -> BenchmarkResult {
+fn run_fine_image(runner: &BenchRunner, name: &str, simd_level: crate::SimdLevel) -> BenchmarkResult {
     use std::sync::Arc;
     use vello_common::coarse::WideTile;
+    use fearless_simd::dispatch;
     use vello_common::encode::EncodeExt;
-    use vello_common::fearless_simd::Fallback;
     use vello_common::kurbo::{Affine, Point};
     use vello_common::paint::{Image, ImageSource};
     use vello_common::peniko::{BlendMode, Compose, Extend, ImageQuality, ImageSampler, Mix};
@@ -312,28 +323,32 @@ fn run_fine_image(runner: &BenchRunner, name: &str) -> BenchmarkResult {
     let mut paints = vec![];
     let paint = image.encode_into(&mut paints, transform);
 
-    let simd_variant = get_simd_variant();
-    let mut fine = Fine::<_, U8Kernel>::new(Fallback::new());
+    let level = simd_level.to_level().unwrap_or_else(|| vello_cpu::Level::fallback());
+    let simd_variant = simd_level.suffix();
 
-    runner.run(
-        &format!("fine/image/{}", name),
-        "fine/image",
-        name,
-        simd_variant,
-        || {
-            fine.fill(0, WideTile::WIDTH as usize, &paint, blend, &paints, None, None);
-            std::hint::black_box(&fine);
-        },
-    )
+    dispatch!(level, simd => {
+        let mut fine = Fine::<_, U8Kernel>::new(simd);
+
+        runner.run(
+            &format!("fine/image/{}", name),
+            "fine/image",
+            name,
+            simd_variant,
+            || {
+                fine.fill(0, WideTile::WIDTH as usize, &paint, blend, &paints, None, None);
+                std::hint::black_box(&fine);
+            },
+        )
+    })
 }
 
 // ============================================================================
 // Fine/Pack benchmark
 // ============================================================================
 
-fn run_fine_pack(runner: &BenchRunner, name: &str) -> BenchmarkResult {
+fn run_fine_pack(runner: &BenchRunner, name: &str, simd_level: crate::SimdLevel) -> BenchmarkResult {
     use vello_common::coarse::WideTile;
-    use vello_common::fearless_simd::Fallback;
+    use fearless_simd::dispatch;
     use vello_common::tile::Tile;
     use vello_cpu::fine::{Fine, U8Kernel, SCRATCH_BUF_SIZE};
     use vello_cpu::region::Regions;
@@ -343,35 +358,39 @@ fn run_fine_pack(runner: &BenchRunner, name: &str) -> BenchmarkResult {
         _ => WideTile::WIDTH,
     };
 
-    let simd_variant = get_simd_variant();
-    let fine = Fine::<_, U8Kernel>::new(Fallback::new());
+    let level = simd_level.to_level().unwrap_or_else(|| vello_cpu::Level::fallback());
+    let simd_variant = simd_level.suffix();
 
-    runner.run(
-        &format!("fine/pack/{}", name),
-        "fine/pack",
-        name,
-        simd_variant,
-        || {
-            let mut buf = vec![0; SCRATCH_BUF_SIZE];
-            let mut regions = Regions::new(width, Tile::HEIGHT, &mut buf);
-            regions.update_regions(|region| {
-                fine.pack(region);
-            });
-            std::hint::black_box(&regions);
-        },
-    )
+    dispatch!(level, simd => {
+        let fine = Fine::<_, U8Kernel>::new(simd);
+
+        runner.run(
+            &format!("fine/pack/{}", name),
+            "fine/pack",
+            name,
+            simd_variant,
+            || {
+                let mut buf = vec![0; SCRATCH_BUF_SIZE];
+                let mut regions = Regions::new(width, Tile::HEIGHT, &mut buf);
+                regions.update_regions(|region| {
+                    fine.pack(region);
+                });
+                std::hint::black_box(&regions);
+            },
+        )
+    })
 }
 
 // ============================================================================
 // Fine/Strip benchmark
 // ============================================================================
 
-fn run_fine_strip(runner: &BenchRunner, name: &str) -> BenchmarkResult {
+fn run_fine_strip(runner: &BenchRunner, name: &str, simd_level: crate::SimdLevel) -> BenchmarkResult {
     use rand::prelude::StdRng;
     use rand::{Rng, SeedableRng};
     use vello_common::coarse::WideTile;
     use vello_common::color::palette::css::ROYAL_BLUE;
-    use vello_common::fearless_simd::Fallback;
+    use fearless_simd::dispatch;
     use vello_common::paint::{Paint, PremulColor};
     use vello_common::peniko::{BlendMode, Compose, Mix};
     use vello_common::tile::Tile;
@@ -391,34 +410,38 @@ fn run_fine_strip(runner: &BenchRunner, name: &str) -> BenchmarkResult {
         _ => 64,
     };
 
-    let simd_variant = get_simd_variant();
-    let mut fine = Fine::<_, U8Kernel>::new(Fallback::new());
+    let level = simd_level.to_level().unwrap_or_else(|| vello_cpu::Level::fallback());
+    let simd_variant = simd_level.suffix();
 
-    runner.run(
-        &format!("fine/strip/{}", name),
-        "fine/strip",
-        name,
-        simd_variant,
-        || {
-            fine.fill(0, width, &paint, blend, &[], Some(&alphas), None);
-            std::hint::black_box(&fine);
-        },
-    )
+    dispatch!(level, simd => {
+        let mut fine = Fine::<_, U8Kernel>::new(simd);
+
+        runner.run(
+            &format!("fine/strip/{}", name),
+            "fine/strip",
+            name,
+            simd_variant,
+            || {
+                fine.fill(0, width, &paint, blend, &[], Some(&alphas), None);
+                std::hint::black_box(&fine);
+            },
+        )
+    })
 }
 
 // ============================================================================
 // Tile benchmark
 // ============================================================================
 
-fn run_tile(runner: &BenchRunner, name: &str) -> Option<BenchmarkResult> {
+fn run_tile(runner: &BenchRunner, name: &str, simd_level: crate::SimdLevel) -> Option<BenchmarkResult> {
     use vello_common::tile::Tiles;
-    use vello_cpu::Level;
 
     let items = get_data_items();
     let item = items.iter().find(|i| i.name == name)?;
     let lines = item.lines();
 
-    let simd_variant = get_simd_variant();
+    let level = simd_level.to_level()?;
+    let simd_variant = simd_level.suffix();
 
     Some(runner.run(
         &format!("tile/{}", name),
@@ -426,7 +449,7 @@ fn run_tile(runner: &BenchRunner, name: &str) -> Option<BenchmarkResult> {
         name,
         simd_variant,
         || {
-            let mut tiler = Tiles::new(Level::new());
+            let mut tiler = Tiles::new(level);
             tiler.make_tiles_analytic_aa(&lines, item.width, item.height);
             std::hint::black_box(&tiler);
         },
@@ -437,16 +460,16 @@ fn run_tile(runner: &BenchRunner, name: &str) -> Option<BenchmarkResult> {
 // Flatten benchmark
 // ============================================================================
 
-fn run_flatten(runner: &BenchRunner, name: &str) -> Option<BenchmarkResult> {
+fn run_flatten(runner: &BenchRunner, name: &str, simd_level: crate::SimdLevel) -> Option<BenchmarkResult> {
     use vello_common::flatten::{self, FlattenCtx, Line};
     use vello_common::kurbo::Affine;
-    use vello_cpu::Level;
 
     let items = get_data_items();
     let item = items.iter().find(|i| i.name == name)?;
     let expanded_strokes = item.expanded_strokes();
 
-    let simd_variant = get_simd_variant();
+    let level = simd_level.to_level()?;
+    let simd_variant = simd_level.suffix();
 
     Some(runner.run(
         &format!("flatten/{}", name),
@@ -459,12 +482,12 @@ fn run_flatten(runner: &BenchRunner, name: &str) -> Option<BenchmarkResult> {
             let mut flatten_ctx = FlattenCtx::default();
 
             for path in &item.fills {
-                flatten::fill(Level::new(), &path.path, path.transform, &mut temp_buf, &mut flatten_ctx);
+                flatten::fill(level, &path.path, path.transform, &mut temp_buf, &mut flatten_ctx);
                 line_buf.extend(&temp_buf);
             }
 
             for stroke in &expanded_strokes {
-                flatten::fill(Level::new(), stroke, Affine::IDENTITY, &mut temp_buf, &mut flatten_ctx);
+                flatten::fill(level, stroke, Affine::IDENTITY, &mut temp_buf, &mut flatten_ctx);
                 line_buf.extend(&temp_buf);
             }
 
@@ -477,14 +500,15 @@ fn run_flatten(runner: &BenchRunner, name: &str) -> Option<BenchmarkResult> {
 // Strokes benchmark
 // ============================================================================
 
-fn run_strokes(runner: &BenchRunner, name: &str) -> Option<BenchmarkResult> {
+fn run_strokes(runner: &BenchRunner, name: &str, simd_level: crate::SimdLevel) -> Option<BenchmarkResult> {
     use vello_common::flatten;
     use vello_common::kurbo::{Stroke, StrokeCtx};
 
     let items = get_data_items();
     let item = items.iter().find(|i| i.name == name)?;
 
-    let simd_variant = get_simd_variant();
+    // strokes don't use SIMD level directly, but we still track the variant
+    let simd_variant = simd_level.suffix();
 
     Some(runner.run(
         &format!("strokes/{}", name),
@@ -510,18 +534,17 @@ fn run_strokes(runner: &BenchRunner, name: &str) -> Option<BenchmarkResult> {
 // Render strips benchmark
 // ============================================================================
 
-fn run_render_strips(runner: &BenchRunner, name: &str) -> Option<BenchmarkResult> {
+fn run_render_strips(runner: &BenchRunner, name: &str, simd_level: crate::SimdLevel) -> Option<BenchmarkResult> {
     use vello_common::peniko::Fill;
     use vello_common::strip::Strip;
-    use vello_cpu::Level;
 
     let items = get_data_items();
     let item = items.iter().find(|i| i.name == name)?;
     let lines = item.lines();
     let tiles = item.sorted_tiles();
-    let simd_level = Level::new();
 
-    let simd_variant = get_simd_variant();
+    let level = simd_level.to_level()?;
+    let simd_variant = simd_level.suffix();
 
     Some(runner.run(
         &format!("render_strips/{}", name),
@@ -533,7 +556,7 @@ fn run_render_strips(runner: &BenchRunner, name: &str) -> Option<BenchmarkResult
             let mut alpha_buf: Vec<u8> = vec![];
 
             vello_common::strip::render(
-                simd_level,
+                level,
                 &tiles,
                 &mut strip_buf,
                 &mut alpha_buf,
@@ -547,21 +570,3 @@ fn run_render_strips(runner: &BenchRunner, name: &str) -> Option<BenchmarkResult
     ))
 }
 
-// ============================================================================
-// Helper functions
-// ============================================================================
-
-fn get_simd_variant() -> &'static str {
-    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
-    { "wasm_simd128" }
-    #[cfg(all(target_arch = "wasm32", not(target_feature = "simd128")))]
-    { "wasm_scalar" }
-    #[cfg(target_arch = "aarch64")]
-    { "neon" }
-    #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
-    { "avx2" }
-    #[cfg(all(target_arch = "x86_64", not(target_feature = "avx2")))]
-    { "sse42" }
-    #[cfg(not(any(target_arch = "wasm32", target_arch = "aarch64", target_arch = "x86_64")))]
-    { "scalar" }
-}

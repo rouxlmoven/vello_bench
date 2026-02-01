@@ -3,6 +3,7 @@
 
 //! Data loading utilities for benchmarks.
 
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 use std::sync::OnceLock;
 use usvg::tiny_skia_path::PathSegment;

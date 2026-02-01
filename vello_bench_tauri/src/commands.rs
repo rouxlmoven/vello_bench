@@ -47,7 +47,7 @@ pub fn get_platform_info() -> PlatformInfo {
 #[tauri::command]
 pub async fn run_benchmark(
     id: String,
-    _simd_level: String,
+    simd_level: String,
     warmup_ms: u64,
     measurement_ms: u64,
 ) -> Option<BenchmarkResult> {
@@ -56,8 +56,18 @@ pub async fn run_benchmark(
 
     // Run the benchmark in a blocking thread to not block the async runtime
     tokio::task::spawn_blocking(move || {
+        // Parse simd level from string
+        let level = match simd_level.as_str() {
+            "scalar" => SimdLevel::Scalar,
+            "sse42" => SimdLevel::Sse42,
+            "avx2" => SimdLevel::Avx2,
+            "neon" => SimdLevel::Neon,
+            "wasm_simd128" => SimdLevel::WasmSimd128,
+            _ => SimdLevel::best(),
+        };
+
         let runner = BenchRunner::new(warmup_ms, measurement_ms);
-        vello_bench_core::run_benchmark_by_id(&runner, &id)
+        vello_bench_core::run_benchmark_by_id(&runner, &id, level)
     })
     .await
     .ok()

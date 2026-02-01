@@ -13,6 +13,7 @@ publish = false
 vello_common = { path = "../../vello/sparse_strips/vello_common" }
 vello_cpu = { path = "../../vello/sparse_strips/vello_cpu" }
 vello_bench_macros = { path = "../vello_bench_macros" }
+fearless_simd = "0.3"
 serde = { version = "1", features = ["derive"] }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 rand = { version = "0.9", default-features = false, features = ["std", "std_rng"] }

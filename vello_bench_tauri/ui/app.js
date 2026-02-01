@@ -362,7 +362,6 @@ function renderCategories(categories) {
 // Render benchmark table
 function renderBenchmarks() {
     const tbody = document.getElementById('benchmark-tbody');
-    const thead = document.querySelector('#benchmark-table thead tr');
     const filtered = state.currentCategory === 'all'
         ? state.benchmarks
         : state.benchmarks.filter(b => b.category === state.currentCategory ||
@@ -376,40 +375,8 @@ function renderBenchmarks() {
         selectAll.disabled = state.isRunning;
     }
 
-    // Update table header based on whether reference is loaded
-    const hasReference = state.loadedReference && state.referenceResults.size > 0;
-    if (thead) {
-        if (hasReference) {
-            thead.innerHTML = `
-                <th class="col-select"><input type="checkbox" id="select-all" title="Select All"></th>
-                <th class="col-name">Benchmark</th>
-                <th class="col-category">Category</th>
-                <th class="col-status">Status</th>
-                <th class="col-mean">Time</th>
-                <th class="col-ref">Reference</th>
-                <th class="col-change">Change</th>
-            `;
-        } else {
-            thead.innerHTML = `
-                <th class="col-select"><input type="checkbox" id="select-all" title="Select All"></th>
-                <th class="col-name">Benchmark</th>
-                <th class="col-category">Category</th>
-                <th class="col-status">Status</th>
-                <th class="col-mean">Time</th>
-            `;
-        }
-        // Re-attach select-all listener after rebuilding header
-        const newSelectAll = document.getElementById('select-all');
-        if (newSelectAll) {
-            newSelectAll.checked = filtered.length > 0 && filtered.every(b => state.selectedBenchmarks.includes(b.id));
-            newSelectAll.disabled = state.isRunning;
-        }
-    }
-
-    const colCount = hasReference ? 7 : 5;
-
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${colCount}" class="no-results">No benchmarks available.</td></tr>`;
+        tbody.innerHTML = '<tr><td colspan="7" class="no-results">No benchmarks available.</td></tr>';
         return;
     }
 
@@ -442,27 +409,25 @@ function renderBenchmarks() {
         let changeStr = '-';
         let changeClass = '';
 
-        if (hasReference) {
-            if (refResult) {
-                const { mean, unit } = formatTime(refResult.statistics.mean_ns);
-                refStr = `${mean.toFixed(3)} ${unit}`;
-            }
+        if (refResult) {
+            const { mean, unit } = formatTime(refResult.statistics.mean_ns);
+            refStr = `${mean.toFixed(3)} ${unit}`;
+        }
 
-            if (result && refResult) {
-                const comparison = calculateComparison(result.statistics.mean_ns, refResult.statistics.mean_ns);
-                if (comparison) {
-                    const sign = comparison.percentChange > 0 ? '+' : '';
-                    changeStr = `${sign}${comparison.percentChange.toFixed(1)}%`;
+        if (result && refResult) {
+            const comparison = calculateComparison(result.statistics.mean_ns, refResult.statistics.mean_ns);
+            if (comparison) {
+                const sign = comparison.percentChange > 0 ? '+' : '';
+                changeStr = `${sign}${comparison.percentChange.toFixed(1)}%`;
 
-                    if (comparison.status === 'faster') {
-                        changeClass = 'change-faster';
-                        changeStr += ` (${comparison.speedup.toFixed(2)}x)`;
-                    } else if (comparison.status === 'slower') {
-                        changeClass = 'change-slower';
-                        changeStr += ` (${(1/comparison.speedup).toFixed(2)}x)`;
-                    } else {
-                        changeClass = 'change-similar';
-                    }
+                if (comparison.status === 'faster') {
+                    changeClass = 'change-faster';
+                    changeStr += ` (${comparison.speedup.toFixed(2)}x)`;
+                } else if (comparison.status === 'slower') {
+                    changeClass = 'change-slower';
+                    changeStr += ` (${(1/comparison.speedup).toFixed(2)}x)`;
+                } else {
+                    changeClass = 'change-similar';
                 }
             }
         }
@@ -470,33 +435,19 @@ function renderBenchmarks() {
         const rowClasses = [status];
         if (isSelected) rowClasses.push('selected');
 
-        if (hasReference) {
-            return `
-                <tr class="${rowClasses.join(' ')}" data-id="${bench.id}">
-                    <td class="col-select">
-                        <input type="checkbox" class="row-checkbox" ${isSelected ? 'checked' : ''} ${state.isRunning ? 'disabled' : ''}>
-                    </td>
-                    <td class="col-name">${bench.name}</td>
-                    <td class="col-category">${bench.category}</td>
-                    <td class="col-status"><span class="status-badge ${status}">${statusText}</span></td>
-                    <td class="col-mean"><span class="result-mean">${meanStr}</span></td>
-                    <td class="col-ref"><span class="result-ref">${refStr}</span></td>
-                    <td class="col-change"><span class="result-change ${changeClass}">${changeStr}</span></td>
-                </tr>
-            `;
-        } else {
-            return `
-                <tr class="${rowClasses.join(' ')}" data-id="${bench.id}">
-                    <td class="col-select">
-                        <input type="checkbox" class="row-checkbox" ${isSelected ? 'checked' : ''} ${state.isRunning ? 'disabled' : ''}>
-                    </td>
-                    <td class="col-name">${bench.name}</td>
-                    <td class="col-category">${bench.category}</td>
-                    <td class="col-status"><span class="status-badge ${status}">${statusText}</span></td>
-                    <td class="col-mean"><span class="result-mean">${meanStr}</span></td>
-                </tr>
-            `;
-        }
+        return `
+            <tr class="${rowClasses.join(' ')}" data-id="${bench.id}">
+                <td class="col-select">
+                    <input type="checkbox" class="row-checkbox" ${isSelected ? 'checked' : ''} ${state.isRunning ? 'disabled' : ''}>
+                </td>
+                <td class="col-name">${bench.name}</td>
+                <td class="col-category">${bench.category}</td>
+                <td class="col-status"><span class="status-badge ${status}">${statusText}</span></td>
+                <td class="col-mean"><span class="result-mean">${meanStr}</span></td>
+                <td class="col-ref"><span class="result-ref">${refStr}</span></td>
+                <td class="col-change"><span class="result-change ${changeClass}">${changeStr}</span></td>
+            </tr>
+        `;
     }).join('');
 }
 
@@ -570,11 +521,17 @@ async function runBenchmarks(ids) {
     state.isRunning = true;
     state.abortRequested = false;
 
+    // Clear previous results for benchmarks we're about to run
+    for (const id of ids) {
+        state.results.delete(id);
+    }
+
     // Mark all as queued initially
     for (const id of ids) {
         state.queuedBenchmarks.add(id);
     }
     renderBenchmarks();
+    updateStats();
     updateRunButtons();
 
     const measurement = 6000; // Measurement time in ms
@@ -641,7 +598,8 @@ function updateRunButtons() {
         if (abortBtn) abortBtn.style.display = 'inline-block';
     } else {
         runBtn.style.display = 'inline-block';
-        runBtn.disabled = state.selectedBenchmarks.length === 0;
+        // Always enabled - runs selected if any, otherwise all visible
+        runBtn.disabled = state.benchmarks.length === 0;
         if (abortBtn) abortBtn.style.display = 'none';
     }
 }
@@ -682,9 +640,7 @@ function renderReferencesDropdown() {
     select.innerHTML = '<option value="">No reference</option>';
 
     for (const ref of state.references) {
-        const date = new Date(ref.created_at).toLocaleDateString();
-        const platform = ref.platform ? ` (${ref.platform.arch})` : '';
-        select.innerHTML += `<option value="${ref.name}">${ref.name} - ${ref.benchmark_count} benchmarks - ${date}${platform}</option>`;
+        select.innerHTML += `<option value="${ref.name}">${ref.name}</option>`;
     }
 
     // Restore selection if still valid
@@ -797,14 +753,47 @@ async function loadReference(name) {
 }
 
 // Delete a reference file
+// Show custom confirm dialog
+function showConfirmDialog(title, message) {
+    return new Promise((resolve) => {
+        const overlay = document.getElementById('confirm-dialog');
+        const titleEl = document.getElementById('confirm-dialog-title');
+        const messageEl = document.getElementById('confirm-dialog-message');
+        const cancelBtn = document.getElementById('confirm-dialog-cancel');
+        const confirmBtn = document.getElementById('confirm-dialog-confirm');
+
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        overlay.style.display = 'flex';
+
+        const cleanup = () => {
+            overlay.style.display = 'none';
+            cancelBtn.removeEventListener('click', onCancel);
+            confirmBtn.removeEventListener('click', onConfirm);
+        };
+
+        const onCancel = () => {
+            cleanup();
+            resolve(false);
+        };
+
+        const onConfirm = () => {
+            cleanup();
+            resolve(true);
+        };
+
+        cancelBtn.addEventListener('click', onCancel);
+        confirmBtn.addEventListener('click', onConfirm);
+    });
+}
+
 async function deleteReference() {
     const select = document.getElementById('reference-select');
     const name = select?.value;
     if (!name) return;
 
-    if (!confirm(`Are you sure you want to delete the reference "${name}"?`)) {
-        return;
-    }
+    const confirmed = await showConfirmDialog('Delete Reference', `Are you sure you want to delete "${name}"?`);
+    if (!confirmed) return;
 
     try {
         await invoke('delete_reference', { name });
@@ -813,13 +802,14 @@ async function deleteReference() {
         if (state.loadedReference === name) {
             state.loadedReference = null;
             state.referenceResults.clear();
+            select.value = '';
             renderBenchmarks();
+            updateReferenceUI();
         }
 
         await loadReferencesList();
     } catch (e) {
         console.error('Failed to delete reference:', e);
-        alert(`Failed to delete reference: ${e}`);
     }
 }
 
@@ -827,18 +817,24 @@ async function deleteReference() {
 function updateReferenceUI() {
     const deleteBtn = document.getElementById('delete-reference-btn');
     const select = document.getElementById('reference-select');
+    const currentName = document.getElementById('reference-current-name');
+
     if (deleteBtn && select) {
         deleteBtn.disabled = !select.value;
     }
 
-    // Update the reference indicator
-    const indicator = document.getElementById('reference-indicator');
-    if (indicator) {
+    if (currentName) {
         if (state.loadedReference) {
-            indicator.textContent = `Comparing against: ${state.loadedReference}`;
-            indicator.style.display = 'inline';
+            const ref = state.references.find(r => r.name === state.loadedReference);
+            if (ref) {
+                const date = new Date(ref.created_at).toLocaleDateString();
+                const platform = ref.platform ? ref.platform.arch : '';
+                currentName.innerHTML = `<strong>${ref.name}</strong><br><span class="reference-meta">${date} · ${platform}</span>`;
+            } else {
+                currentName.textContent = state.loadedReference;
+            }
         } else {
-            indicator.style.display = 'none';
+            currentName.textContent = 'None';
         }
     }
 }
@@ -848,8 +844,13 @@ function calculateComparison(currentNs, referenceNs) {
     if (!referenceNs || referenceNs === 0) return null;
 
     const diff = currentNs - referenceNs;
-    const percentChange = (diff / referenceNs) * 100;
+    let percentChange = (diff / referenceNs) * 100;
     const speedup = referenceNs / currentNs;
+
+    // Avoid -0.0 display
+    if (Math.abs(percentChange) < 0.05) {
+        percentChange = 0;
+    }
 
     // Determine status: 'faster', 'slower', or 'similar'
     let status;
@@ -1006,33 +1007,31 @@ function setupEventListeners() {
         deleteRefBtn.addEventListener('click', deleteReference);
     }
 
-    // Re-attach select-all listener (since header may be rebuilt)
-    document.getElementById('benchmark-table').addEventListener('change', (e) => {
-        if (e.target.id === 'select-all') {
-            if (state.isRunning) {
-                e.target.checked = !e.target.checked;
-                return;
-            }
-
-            const filtered = state.currentCategory === 'all'
-                ? state.benchmarks
-                : state.benchmarks.filter(b => b.category === state.currentCategory ||
-                    b.category.startsWith(state.currentCategory + '/'));
-
-            if (e.target.checked) {
-                for (const b of filtered) {
-                    if (!state.selectedBenchmarks.includes(b.id)) {
-                        state.selectedBenchmarks.push(b.id);
-                    }
-                }
-            } else {
-                const visibleIds = new Set(filtered.map(b => b.id));
-                state.selectedBenchmarks = state.selectedBenchmarks.filter(id => !visibleIds.has(id));
-            }
-
-            renderBenchmarks();
-            updateRunButtons();
+    // Select all checkbox
+    document.getElementById('select-all').addEventListener('change', (e) => {
+        if (state.isRunning) {
+            e.target.checked = !e.target.checked;
+            return;
         }
+
+        const filtered = state.currentCategory === 'all'
+            ? state.benchmarks
+            : state.benchmarks.filter(b => b.category === state.currentCategory ||
+                b.category.startsWith(state.currentCategory + '/'));
+
+        if (e.target.checked) {
+            for (const b of filtered) {
+                if (!state.selectedBenchmarks.includes(b.id)) {
+                    state.selectedBenchmarks.push(b.id);
+                }
+            }
+        } else {
+            const visibleIds = new Set(filtered.map(b => b.id));
+            state.selectedBenchmarks = state.selectedBenchmarks.filter(id => !visibleIds.has(id));
+        }
+
+        renderBenchmarks();
+        updateRunButtons();
     });
 }
 

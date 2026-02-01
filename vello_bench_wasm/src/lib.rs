@@ -48,8 +48,9 @@ pub fn has_simd128() -> bool {
 #[wasm_bindgen]
 pub fn run_benchmark(id: &str, warmup_ms: u64, measurement_ms: u64) -> JsValue {
     let runner = BenchRunner::new(warmup_ms, measurement_ms);
+    let simd_level = SimdLevel::best();
 
-    match vello_bench_core::run_benchmark_by_id(&runner, id) {
+    match vello_bench_core::run_benchmark_by_id(&runner, id, simd_level) {
         Some(result) => serde_wasm_bindgen::to_value(&result).unwrap(),
         None => JsValue::NULL,
     }

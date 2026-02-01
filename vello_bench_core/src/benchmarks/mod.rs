@@ -49,9 +49,6 @@ pub fn run_all_benchmarks() {
     section("Fine - Gradient");
     fine::gradient::run_benchmarks();
 
-    section("Fine - Blend");
-    fine::blend::run_benchmarks();
-
     section("Fine - Image");
     fine::image::run_benchmarks();
 
