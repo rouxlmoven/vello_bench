@@ -38,6 +38,7 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
             CATEGORY,
             name,
             simd_variant,
+            #[inline(always)]
             || {
                 let mut buf = vec![0; SCRATCH_BUF_SIZE];
                 let mut regions = Regions::new(width, Tile::HEIGHT, &mut buf);

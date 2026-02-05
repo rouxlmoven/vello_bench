@@ -28,6 +28,7 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
         CATEGORY,
         name,
         simd_variant,
+        #[inline(always)]
         || {
             let mut strip_buf: Vec<Strip> = vec![];
             let mut alpha_buf: Vec<u8> = vec![];

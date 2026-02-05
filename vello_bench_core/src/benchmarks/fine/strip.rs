@@ -51,6 +51,7 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
             CATEGORY,
             name,
             simd_variant,
+            #[inline(always)]
             || {
                 fine.fill(0, width, &paint, blend, &[], Some(&alphas), None);
                 std::hint::black_box(&fine);

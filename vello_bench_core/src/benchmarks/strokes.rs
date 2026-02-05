@@ -29,6 +29,7 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
         CATEGORY,
         name,
         simd_variant,
+        #[inline(always)]
         || {
             let mut stroke_ctx = StrokeCtx::default();
             let mut paths = vec![];

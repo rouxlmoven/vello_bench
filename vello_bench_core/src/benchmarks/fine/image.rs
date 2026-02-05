@@ -84,6 +84,7 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
             CATEGORY,
             name,
             simd_variant,
+            #[inline(always)]
             || {
                 fine.fill(0, WideTile::WIDTH as usize, &paint, blend, &paints, None, None);
                 std::hint::black_box(&fine);

@@ -26,6 +26,7 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
         CATEGORY,
         name,
         simd_variant,
+        #[inline(always)]
         || {
             let mut tiler = Tiles::new(level);
             tiler.make_tiles_analytic_aa(&lines, item.width, item.height);
