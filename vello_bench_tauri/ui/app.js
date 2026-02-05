@@ -1,5 +1,8 @@
 // Vello Benchmark Suite - Web UI
 
+// Keep in sync with CALIBRATION_MS in vello_bench_core/src/lib.rs.
+const CALIBRATION_MS = 2000;
+
 // State
 const state = {
     benchmarks: [],
@@ -445,15 +448,13 @@ function renderResults() {
 }
 
 // Run a single benchmark
-async function runSingleBenchmark(id, measurement) {
+async function runSingleBenchmark(id) {
     const simdLevel = document.getElementById('simd-level').value;
 
     if (state.executionMode === 'native' && state.isTauri) {
         return await invoke('run_benchmark', {
             id: id,
             simdLevel: simdLevel,
-            warmupMs: 0, // Unused - calibration handles warmup
-            measurementMs: measurement,
         });
     } else if (state.wasmWorker) {
         // WASM benchmarks run in a Web Worker to avoid blocking the UI
@@ -462,7 +463,6 @@ async function runSingleBenchmark(id, measurement) {
             state.wasmWorker.postMessage({
                 type: 'run',
                 id: id,
-                measurementMs: measurement,
             });
         });
     }
@@ -501,8 +501,6 @@ async function runBenchmarks(ids) {
     updateStats();
     updateRunButtons();
 
-    const measurement = 6000; // Measurement time in ms
-
     for (const id of ids) {
         // Check for abort
         if (state.abortRequested) {
@@ -516,20 +514,20 @@ async function runBenchmarks(ids) {
         state.runningPhase = 'calibrating';
         renderBenchmarks();
 
-        // Set timer to transition to measuring phase after estimated calibration (~1.5s)
+        // Keep in sync with CALIBRATION_MS in vello_bench_core/src/lib.rs.
         const phaseTimer = setTimeout(() => {
             if (state.runningBenchmark === id && state.runningPhase === 'calibrating') {
                 state.runningPhase = 'measuring';
                 renderBenchmarks();
             }
-        }, 1500);
+        }, 2000);
 
         // Allow UI to update
         await new Promise(resolve => setTimeout(resolve, 0));
 
         try {
             console.log('Running benchmark:', id);
-            const result = await runSingleBenchmark(id, measurement);
+            const result = await runSingleBenchmark(id);
             console.log('Result:', result);
 
             if (result) {

@@ -30,11 +30,7 @@ self.onmessage = async function(e) {
             }
 
             try {
-                const result = wasmModule.run_benchmark(
-                    data.id,
-                    BigInt(0),  // warmup unused
-                    BigInt(data.measurementMs)
-                );
+                const result = wasmModule.run_benchmark(data.id);
                 self.postMessage({ type: 'result', id: data.id, result });
             } catch (e) {
                 self.postMessage({ type: 'error', id: data.id, error: e.message });

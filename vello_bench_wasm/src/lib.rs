@@ -40,10 +40,10 @@ pub fn has_simd128() -> bool {
 
 /// Run a single benchmark by ID.
 #[wasm_bindgen]
-pub fn run_benchmark(id: &str, warmup_ms: u64, measurement_ms: u64) -> JsValue {
+pub fn run_benchmark(id: &str) -> JsValue {
     use fearless_simd::Level;
 
-    let runner = BenchRunner::new(warmup_ms, measurement_ms);
+    let runner = BenchRunner::default();
     let level = Level::new();
 
     match vello_bench_core::run_benchmark_by_id(&runner, id, level) {

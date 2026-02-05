@@ -1,33 +1,18 @@
+use crate::{CALIBRATION_MS, MEASUREMENT_MS};
 use crate::result::{BenchmarkResult, Statistics};
 
-/// Configuration for benchmark runs.
-#[derive(Debug, Clone)]
-pub struct BenchRunner {
-    /// Measurement duration in milliseconds.
-    pub measurement_ms: u64,
-}
+/// Benchmark runner.
+#[derive(Debug, Clone, Default)]
+pub struct BenchRunner;
 
 impl BenchRunner {
-    /// Create a new runner with custom measurement time.
-    pub fn new(_warmup_ms: u64, measurement_ms: u64) -> Self {
-        // warmup_ms is ignored - calibration handles warmup
-        Self { measurement_ms }
-    }
-
-    /// Create a runner with default timing (5s measurement).
-    pub fn default_timing() -> Self {
-        Self {
-            measurement_ms: 5000,
-        }
-    }
-
-    /// Calibrate to find iteration count that takes ~500ms.
+    /// Calibrate to find iteration count that fills the calibration window.
     /// Returns (batch_size, batch_time_ns).
     fn calibrate<F, T: Timer>(timer: &T, mut f: F) -> (usize, f64)
     where
         F: FnMut(),
     {
-        let target_ns = 1_500_000_000.0; // 1500ms in nanoseconds
+        let target_ns = CALIBRATION_MS as f64 * 1_000_000.0;
         let mut batch_size = 1usize;
 
         loop {
@@ -73,18 +58,14 @@ impl BenchRunner {
     where
         F: FnMut(),
     {
-        // Calibration phase: find batch size that takes ~500ms
         let (batch_size, batch_time_ns) = Self::calibrate(timer, &mut f);
 
-        // Notify that calibration is complete
         on_calibrated();
 
-        // Calculate iterations needed for target measurement time
-        let target_ns = self.measurement_ms as f64 * 1_000_000.0;
+        let target_ns = MEASUREMENT_MS as f64 * 1_000_000.0;
         let iters_per_ns = batch_size as f64 / batch_time_ns;
         let total_iters = (iters_per_ns * target_ns).ceil() as usize;
 
-        // Single measurement
         let statistics = Self::measure(timer, f, total_iters);
 
         BenchmarkResult {
@@ -99,7 +80,7 @@ impl BenchRunner {
 
     /// Run a benchmark and return the result.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn  run<F>(&self, id: &str, category: &str, name: &str, simd_variant: &str, f: F) -> BenchmarkResult
+    pub fn run<F>(&self, id: &str, category: &str, name: &str, simd_variant: &str, f: F) -> BenchmarkResult
     where
         F: FnMut(),
     {
@@ -133,12 +114,6 @@ impl BenchRunner {
         C: FnOnce(),
     {
         self.run_with_timer(&WasmTimer::new(), id, category, name, simd_variant, f, on_calibrated)
-    }
-}
-
-impl Default for BenchRunner {
-    fn default() -> Self {
-        Self::default_timing()
     }
 }
 

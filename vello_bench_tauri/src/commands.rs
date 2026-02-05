@@ -29,8 +29,6 @@ pub fn get_simd_levels() -> Vec<SimdLevelInfo> {
 pub async fn run_benchmark(
     id: String,
     simd_level: String,
-    warmup_ms: u64,
-    measurement_ms: u64,
 ) -> Option<BenchmarkResult> {
     // Acquire lock to ensure only one benchmark runs at a time
     let _guard = BENCHMARK_LOCK.lock().await;
@@ -38,7 +36,7 @@ pub async fn run_benchmark(
     // Run the benchmark in a blocking thread to not block the async runtime
     tokio::task::spawn_blocking(move || {
         let level = level_from_suffix(&simd_level);
-        let runner = BenchRunner::new(warmup_ms, measurement_ms);
+        let runner = BenchRunner::default();
         vello_bench_core::run_benchmark_by_id(&runner, &id, level)
     })
     .await
