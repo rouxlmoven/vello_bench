@@ -24,8 +24,9 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
     }
 
     let width = match name {
+        "block" => WideTile::WIDTH,
         "regular" => WideTile::WIDTH - 1,
-        _ => WideTile::WIDTH,
+        _ => panic!("unknown fine/pack benchmark: {name}"),
     };
 
     let simd_variant = level_suffix(level);

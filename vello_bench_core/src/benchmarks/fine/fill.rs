@@ -25,12 +25,13 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
 
     let blend = BlendMode::new(Mix::Normal, Compose::SrcOver);
 
-    let width = match name {
-        "opaque_short" | "transparent_short" => 32,
-        _ => 256,
+    let (width, alpha) = match name {
+        "opaque_short" => (32, 1.0),
+        "opaque_long" => (256, 1.0),
+        "transparent_short" => (32, 0.3),
+        "transparent_long" => (256, 0.3),
+        _ => panic!("unknown fine/fill benchmark: {name}"),
     };
-
-    let alpha = if name.contains("transparent") { 0.3 } else { 1.0 };
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE.with_alpha(alpha)));
 
     let simd_variant = level_suffix(level);

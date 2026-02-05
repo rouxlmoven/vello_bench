@@ -38,7 +38,8 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
 
     let width = match name {
         "solid_short" => 8,
-        _ => 64,
+        "solid_long" => 64,
+        _ => panic!("unknown fine/strip benchmark: {name}"),
     };
 
     let simd_variant = level_suffix(level);

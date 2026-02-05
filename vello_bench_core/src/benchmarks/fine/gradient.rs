@@ -36,7 +36,43 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
 
     let blend = BlendMode::new(Mix::Normal, Compose::SrcOver);
 
-    let stops: ColorStops = match name {
+    let opaque_stops = || {
+        ColorStops(smallvec![
+            ColorStop { offset: 0.0, color: DynamicColor::from_alpha_color(BLUE) },
+            ColorStop { offset: 0.33, color: DynamicColor::from_alpha_color(GREEN) },
+            ColorStop { offset: 0.66, color: DynamicColor::from_alpha_color(RED) },
+            ColorStop { offset: 1.0, color: DynamicColor::from_alpha_color(YELLOW) },
+        ])
+    };
+
+    let (stops, kind, extend): (ColorStops, GradientKind, vello_common::peniko::Extend) = match name {
+        "linear_opaque" => (
+            opaque_stops(),
+            LinearGradientPosition {
+                start: Point::new(128.0, 128.0),
+                end: Point::new(134.0, 134.0),
+            }.into(),
+            vello_common::peniko::Extend::Pad,
+        ),
+        "radial_opaque" => (
+            opaque_stops(),
+            RadialGradientPosition {
+                start_center: Point::new(WideTile::WIDTH as f64 / 2.0, (Tile::HEIGHT / 2) as f64),
+                start_radius: 25.0,
+                end_center: Point::new(WideTile::WIDTH as f64 / 2.0, (Tile::HEIGHT / 2) as f64),
+                end_radius: 75.0,
+            }.into(),
+            vello_common::peniko::Extend::Pad,
+        ),
+        "sweep_opaque" => (
+            opaque_stops(),
+            SweepGradientPosition {
+                center: Point::new(WideTile::WIDTH as f64 / 2.0, (Tile::HEIGHT / 2) as f64),
+                start_angle: 70.0_f32.to_radians(),
+                end_angle: 250.0_f32.to_radians(),
+            }.into(),
+            vello_common::peniko::Extend::Pad,
+        ),
         "many_stops" => {
             let mut vec = SmallVec::new();
             let mut rng = StdRng::from_seed(SEED);
@@ -51,46 +87,29 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
                 ]));
                 vec.push(ColorStop { offset, color });
             }
-            ColorStops(vec)
+            (
+                ColorStops(vec),
+                LinearGradientPosition {
+                    start: Point::new(128.0, 128.0),
+                    end: Point::new(134.0, 134.0),
+                }.into(),
+                vello_common::peniko::Extend::Repeat,
+            )
         }
-        "transparent" => ColorStops(smallvec![
-            ColorStop { offset: 0.0, color: DynamicColor::from_alpha_color(BLUE) },
-            ColorStop { offset: 0.33, color: DynamicColor::from_alpha_color(GREEN.with_alpha(0.5)) },
-            ColorStop { offset: 0.66, color: DynamicColor::from_alpha_color(RED) },
-            ColorStop { offset: 1.0, color: DynamicColor::from_alpha_color(YELLOW.with_alpha(0.7)) },
-        ]),
-        _ => ColorStops(smallvec![
-            ColorStop { offset: 0.0, color: DynamicColor::from_alpha_color(BLUE) },
-            ColorStop { offset: 0.33, color: DynamicColor::from_alpha_color(GREEN) },
-            ColorStop { offset: 0.66, color: DynamicColor::from_alpha_color(RED) },
-            ColorStop { offset: 1.0, color: DynamicColor::from_alpha_color(YELLOW) },
-        ]),
-    };
-
-    let kind: GradientKind = match name {
-        "radial_opaque" => RadialGradientPosition {
-            start_center: Point::new(WideTile::WIDTH as f64 / 2.0, (Tile::HEIGHT / 2) as f64),
-            start_radius: 25.0,
-            end_center: Point::new(WideTile::WIDTH as f64 / 2.0, (Tile::HEIGHT / 2) as f64),
-            end_radius: 75.0,
-        }
-        .into(),
-        "sweep_opaque" => SweepGradientPosition {
-            center: Point::new(WideTile::WIDTH as f64 / 2.0, (Tile::HEIGHT / 2) as f64),
-            start_angle: 70.0_f32.to_radians(),
-            end_angle: 250.0_f32.to_radians(),
-        }
-        .into(),
-        _ => LinearGradientPosition {
-            start: Point::new(128.0, 128.0),
-            end: Point::new(134.0, 134.0),
-        }
-        .into(),
-    };
-
-    let extend = match name {
-        "many_stops" => vello_common::peniko::Extend::Repeat,
-        _ => vello_common::peniko::Extend::Pad,
+        "transparent" => (
+            ColorStops(smallvec![
+                ColorStop { offset: 0.0, color: DynamicColor::from_alpha_color(BLUE) },
+                ColorStop { offset: 0.33, color: DynamicColor::from_alpha_color(GREEN.with_alpha(0.5)) },
+                ColorStop { offset: 0.66, color: DynamicColor::from_alpha_color(RED) },
+                ColorStop { offset: 1.0, color: DynamicColor::from_alpha_color(YELLOW.with_alpha(0.7)) },
+            ]),
+            LinearGradientPosition {
+                start: Point::new(128.0, 128.0),
+                end: Point::new(134.0, 134.0),
+            }.into(),
+            vello_common::peniko::Extend::Pad,
+        ),
+        _ => panic!("unknown fine/gradient benchmark: {name}"),
     };
 
     let grad = Gradient { kind, stops, extend, ..Default::default() };

@@ -41,28 +41,27 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
 
     let blend = BlendMode::new(Mix::Normal, Compose::SrcOver);
 
-    let quality = match name {
-        "quality_medium" => ImageQuality::Medium,
-        "quality_high" => ImageQuality::High,
-        _ => ImageQuality::Low,
-    };
-
-    let extend = match name {
-        "extend_repeat" => Extend::Repeat,
-        _ => Extend::Pad,
-    };
-
-    let (data, transform): (&[u8], Affine) = match name {
-        "extend_repeat" => (SMALL_DATA, Affine::translate((WideTile::WIDTH as f64 / 2.0, 0.0))),
-        "scale" | "quality_medium" | "quality_high" => (COLR_DATA, Affine::scale(3.0)),
+    let (quality, extend, data, transform): (ImageQuality, Extend, &[u8], Affine) = match name {
+        "no_transform" => (ImageQuality::Low, Extend::Pad, COLR_DATA, Affine::IDENTITY),
+        "scale" => (ImageQuality::Low, Extend::Pad, COLR_DATA, Affine::scale(3.0)),
         "rotate" => (
+            ImageQuality::Low,
+            Extend::Pad,
             COLR_DATA,
             Affine::rotate_about(
                 1.0,
                 Point::new(WideTile::WIDTH as f64 / 2.0, Tile::HEIGHT as f64 / 2.0),
             ),
         ),
-        _ => (COLR_DATA, Affine::IDENTITY),
+        "quality_medium" => (ImageQuality::Medium, Extend::Pad, COLR_DATA, Affine::scale(3.0)),
+        "quality_high" => (ImageQuality::High, Extend::Pad, COLR_DATA, Affine::scale(3.0)),
+        "extend_repeat" => (
+            ImageQuality::Low,
+            Extend::Repeat,
+            SMALL_DATA,
+            Affine::translate((WideTile::WIDTH as f64 / 2.0, 0.0)),
+        ),
+        _ => panic!("unknown fine/image benchmark: {name}"),
     };
 
     let pixmap = Pixmap::from_png(data).unwrap();
