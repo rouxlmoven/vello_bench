@@ -1,6 +1,3 @@
-// Copyright 2025 the Vello Authors
-// SPDX-License-Identifier: Apache-2.0 OR MIT
-
 //! Core library for vello benchmarking.
 
 #![allow(missing_docs, reason = "Not needed for benchmarks")]

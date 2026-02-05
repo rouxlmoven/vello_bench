@@ -1,6 +1,3 @@
-// Copyright 2025 the Vello Authors
-// SPDX-License-Identifier: Apache-2.0 OR MIT
-
 //! WASM bindings for vello benchmarks.
 
 #![allow(missing_docs, reason = "Not needed for benchmarks")]

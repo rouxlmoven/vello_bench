@@ -1,6 +1,3 @@
-// Copyright 2025 the Vello Authors
-// SPDX-License-Identifier: Apache-2.0 OR MIT
-
 //! Helpers for working with fearless_simd::Level in a benchmarking context.
 
 use serde::{Deserialize, Serialize};

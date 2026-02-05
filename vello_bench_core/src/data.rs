@@ -1,6 +1,3 @@
-// Copyright 2025 the Vello Authors
-// SPDX-License-Identifier: Apache-2.0 OR MIT
-
 //! Data loading utilities for benchmarks.
 //!
 //! All assets are embedded via `include_bytes!` so they work on all platforms including WASM.
