@@ -21,7 +21,17 @@ use vello_common::tile::Tile;
 use vello_cpu::fine::{Fine, U8Kernel};
 use vello_cpu::peniko::{LinearGradientPosition, RadialGradientPosition, SweepGradientPosition};
 
-const NAMES: &[&str] = &["linear_opaque", "radial_opaque", "sweep_opaque", "many_stops", "transparent"];
+const NAMES: &[&str] = &[
+    "linear_opaque",
+    "radial_opaque",
+    "radial_opaque_conical",
+    "sweep_opaque",
+    "extend_pad",
+    "extend_repeat",
+    "extend_reflect",
+    "many_stops",
+    "transparent",
+];
 const CATEGORY: &str = "fine/gradient";
 const SEED: [u8; 32] = [0; 32];
 
@@ -64,6 +74,19 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
             }.into(),
             vello_common::peniko::Extend::Pad,
         ),
+        "radial_opaque_conical" => (
+            opaque_stops(),
+            RadialGradientPosition {
+                start_center: Point::new(WideTile::WIDTH as f64 / 2.0, (Tile::HEIGHT / 2) as f64),
+                start_radius: 25.0,
+                end_center: Point::new(
+                    WideTile::WIDTH as f64 / 2.0 + 5.0,
+                    (Tile::HEIGHT / 2) as f64 + 5.0,
+                ),
+                end_radius: 75.0,
+            }.into(),
+            vello_common::peniko::Extend::Pad,
+        ),
         "sweep_opaque" => (
             opaque_stops(),
             SweepGradientPosition {
@@ -72,6 +95,30 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
                 end_angle: 250.0_f32.to_radians(),
             }.into(),
             vello_common::peniko::Extend::Pad,
+        ),
+        "extend_pad" => (
+            opaque_stops(),
+            LinearGradientPosition {
+                start: Point::new(128.0, 128.0),
+                end: Point::new(134.0, 134.0),
+            }.into(),
+            vello_common::peniko::Extend::Pad,
+        ),
+        "extend_repeat" => (
+            opaque_stops(),
+            LinearGradientPosition {
+                start: Point::new(128.0, 128.0),
+                end: Point::new(134.0, 134.0),
+            }.into(),
+            vello_common::peniko::Extend::Repeat,
+        ),
+        "extend_reflect" => (
+            opaque_stops(),
+            LinearGradientPosition {
+                start: Point::new(128.0, 128.0),
+                end: Point::new(134.0, 134.0),
+            }.into(),
+            vello_common::peniko::Extend::Reflect,
         ),
         "many_stops" => {
             let mut vec = SmallVec::new();

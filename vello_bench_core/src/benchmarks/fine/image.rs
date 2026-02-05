@@ -21,9 +21,12 @@ const NAMES: &[&str] = &[
     "no_transform",
     "scale",
     "rotate",
+    "quality_low",
     "quality_medium",
     "quality_high",
+    "extend_pad",
     "extend_repeat",
+    "extend_reflect",
 ];
 const CATEGORY: &str = "fine/image";
 
@@ -41,6 +44,8 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
 
     let blend = BlendMode::new(Mix::Normal, Compose::SrcOver);
 
+    let small_translate = Affine::translate((WideTile::WIDTH as f64 / 2.0, 0.0));
+
     let (quality, extend, data, transform): (ImageQuality, Extend, &[u8], Affine) = match name {
         "no_transform" => (ImageQuality::Low, Extend::Pad, COLR_DATA, Affine::IDENTITY),
         "scale" => (ImageQuality::Low, Extend::Pad, COLR_DATA, Affine::scale(3.0)),
@@ -53,14 +58,12 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
                 Point::new(WideTile::WIDTH as f64 / 2.0, Tile::HEIGHT as f64 / 2.0),
             ),
         ),
+        "quality_low" => (ImageQuality::Low, Extend::Pad, COLR_DATA, Affine::scale(3.0)),
         "quality_medium" => (ImageQuality::Medium, Extend::Pad, COLR_DATA, Affine::scale(3.0)),
         "quality_high" => (ImageQuality::High, Extend::Pad, COLR_DATA, Affine::scale(3.0)),
-        "extend_repeat" => (
-            ImageQuality::Low,
-            Extend::Repeat,
-            SMALL_DATA,
-            Affine::translate((WideTile::WIDTH as f64 / 2.0, 0.0)),
-        ),
+        "extend_pad" => (ImageQuality::Low, Extend::Pad, SMALL_DATA, small_translate),
+        "extend_repeat" => (ImageQuality::Low, Extend::Repeat, SMALL_DATA, small_translate),
+        "extend_reflect" => (ImageQuality::Low, Extend::Reflect, SMALL_DATA, small_translate),
         _ => panic!("unknown fine/image benchmark: {name}"),
     };
 
