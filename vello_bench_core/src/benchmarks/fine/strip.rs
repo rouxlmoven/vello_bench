@@ -37,8 +37,8 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
         .collect();
 
     let width = match name {
-        "solid_short" => 8,
-        "solid_long" => 64,
+        "solid_short" => 32,
+        "solid_long" => 256,
         _ => panic!("unknown fine/strip benchmark: {name}"),
     };
 
