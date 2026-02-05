@@ -18,7 +18,7 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
     let item = items.iter().find(|i| i.name == name)?;
     let simd_variant = level_suffix(level);
 
-    // strokes don't use SIMD level directly, but we still track the variant
+    // Strokes don't use SIMD level directly.
     let _ = level;
 
     let mut stroke_ctx = StrokeCtx::default();
