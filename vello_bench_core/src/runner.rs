@@ -1,4 +1,4 @@
-use crate::result::{BenchmarkResult, PlatformInfo, Statistics};
+use crate::result::{BenchmarkResult, Statistics};
 
 /// Configuration for benchmark runs.
 #[derive(Debug, Clone)]
@@ -94,7 +94,6 @@ impl BenchRunner {
             simd_variant: simd_variant.to_string(),
             statistics,
             timestamp_ms: timer.timestamp_ms(),
-            platform: PlatformInfo::detect(),
         }
     }
 

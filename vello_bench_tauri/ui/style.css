@@ -200,30 +200,6 @@ input[type="number"] {
     flex-shrink: 0;
 }
 
-.platform-info {
-    margin-top: auto;
-    padding-top: 0.5rem;
-    border-top: 1px solid var(--border);
-}
-
-.platform-info h3 {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    margin-bottom: 0.25rem;
-}
-
-#platform-details {
-    font-size: 0.7rem;
-    color: var(--text-secondary);
-}
-
-#platform-details div {
-    margin-bottom: 0.15rem;
-}
-
-#platform-details span {
-    color: var(--text-primary);
-}
 
 /* Reference Panel */
 .reference-panel {

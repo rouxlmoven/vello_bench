@@ -76,12 +76,6 @@ function createWasmWorker() {
                 }
                 break;
 
-            case 'platformInfo':
-                if (state.pendingWasmResolve) {
-                    state.pendingWasmResolve(data.info);
-                    state.pendingWasmResolve = null;
-                }
-                break;
         }
     };
 
@@ -186,9 +180,6 @@ async function init() {
         state.executionMode = 'wasm';
     }
 
-    // Load platform info
-    await loadPlatformInfo();
-
     // Load SIMD levels
     await loadSimdLevels();
 
@@ -202,30 +193,6 @@ async function init() {
     setupEventListeners();
 }
 
-// Load platform information
-async function loadPlatformInfo() {
-    try {
-        let info;
-        if (state.executionMode === 'native' && state.isTauri) {
-            info = await invoke('get_platform_info');
-        } else if (state.wasmWorker) {
-            info = await new Promise((resolve) => {
-                state.pendingWasmResolve = resolve;
-                state.wasmWorker.postMessage({ type: 'platform' });
-            });
-        } else {
-            info = { arch: 'unknown', os: 'unknown', simd_features: ['unknown'] };
-        }
-        console.log('Platform info:', info);
-
-        document.getElementById('platform-arch').textContent = info.arch;
-        document.getElementById('platform-os').textContent = info.os;
-    } catch (e) {
-        console.error('Failed to load platform info:', e);
-        document.getElementById('platform-arch').textContent = 'error';
-        document.getElementById('platform-os').textContent = 'error';
-    }
-}
 
 // Load available SIMD levels
 async function loadSimdLevels() {
@@ -828,8 +795,7 @@ function updateReferenceUI() {
             const ref = state.references.find(r => r.name === state.loadedReference);
             if (ref) {
                 const date = new Date(ref.created_at).toLocaleDateString();
-                const platform = ref.platform ? ref.platform.arch : '';
-                currentName.innerHTML = `<strong>${ref.name}</strong><br><span class="reference-meta">${date} · ${platform}</span>`;
+                currentName.innerHTML = `<strong>${ref.name}</strong><br><span class="reference-meta">${date}</span>`;
             } else {
                 currentName.textContent = state.loadedReference;
             }
@@ -874,8 +840,7 @@ function setupEventListeners() {
 
         // Keep results when switching modes
 
-        // Reload platform info, SIMD levels, and benchmarks for new mode
-        await loadPlatformInfo();
+        // Reload SIMD levels and benchmarks for new mode
         await loadSimdLevels();
         await loadBenchmarks();
     });

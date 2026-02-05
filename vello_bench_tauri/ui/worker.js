@@ -54,17 +54,5 @@ self.onmessage = async function(e) {
             }
             break;
 
-        case 'platform':
-            if (!wasmModule) {
-                self.postMessage({ type: 'platformInfo', info: { arch: 'unknown', os: 'unknown', simd_features: [] } });
-                return;
-            }
-            try {
-                const info = wasmModule.get_platform_info();
-                self.postMessage({ type: 'platformInfo', info });
-            } catch (e) {
-                self.postMessage({ type: 'error', error: e.message });
-            }
-            break;
     }
 };

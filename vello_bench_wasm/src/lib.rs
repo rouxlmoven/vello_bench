@@ -2,7 +2,7 @@
 
 #![allow(missing_docs, reason = "Not needed for benchmarks")]
 
-use vello_bench_core::{BenchRunner, PlatformInfo, available_level_infos};
+use vello_bench_core::{BenchRunner, available_level_infos};
 use wasm_bindgen::prelude::*;
 
 /// Initialize the WASM module.
@@ -52,9 +52,3 @@ pub fn run_benchmark(id: &str, warmup_ms: u64, measurement_ms: u64) -> JsValue {
     }
 }
 
-/// Get platform information.
-#[wasm_bindgen]
-pub fn get_platform_info() -> JsValue {
-    let info = PlatformInfo::detect();
-    serde_wasm_bindgen::to_value(&info).unwrap()
-}

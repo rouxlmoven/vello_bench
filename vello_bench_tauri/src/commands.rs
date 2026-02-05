@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::sync::LazyLock;
 use tokio::sync::Mutex;
 use vello_bench_core::{
-    BenchRunner, BenchmarkInfo, BenchmarkResult, PlatformInfo, SimdLevelInfo,
+    BenchRunner, BenchmarkInfo, BenchmarkResult, SimdLevelInfo,
     available_level_infos, level_from_suffix,
 };
 
@@ -22,12 +22,6 @@ pub fn list_benchmarks() -> Vec<BenchmarkInfo> {
 #[tauri::command]
 pub fn get_simd_levels() -> Vec<SimdLevelInfo> {
     available_level_infos()
-}
-
-/// Get platform info.
-#[tauri::command]
-pub fn get_platform_info() -> PlatformInfo {
-    PlatformInfo::detect()
 }
 
 /// Run a single benchmark (async, runs in background thread).
@@ -67,7 +61,6 @@ pub struct ReferenceInfo {
     pub name: String,
     pub created_at: u64,
     pub benchmark_count: usize,
-    pub platform: Option<PlatformInfo>,
 }
 
 /// Save benchmark results as a named reference.
@@ -133,22 +126,17 @@ pub fn list_references() -> Vec<ReferenceInfo> {
                 })
                 .unwrap_or(0);
 
-            // Try to read and parse to get benchmark count and platform
-            let (benchmark_count, platform) = fs::read_to_string(&path)
+            // Try to read and parse to get benchmark count
+            let benchmark_count = fs::read_to_string(&path)
                 .ok()
                 .and_then(|content| serde_json::from_str::<Vec<BenchmarkResult>>(&content).ok())
-                .map(|results| {
-                    let count = results.len();
-                    let platform = results.first().map(|r| r.platform.clone());
-                    (count, platform)
-                })
-                .unwrap_or((0, None));
+                .map(|results| results.len())
+                .unwrap_or(0);
 
             references.push(ReferenceInfo {
                 name,
                 created_at,
                 benchmark_count,
-                platform,
             });
         }
     }
