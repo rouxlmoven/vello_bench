@@ -157,6 +157,11 @@ struct WasmTimer {
     performance: web_sys::Performance,
 }
 
+// Note that the JS performance timer is likely not super accurate. However,
+// in our case we have a calibration phase to estimate how many iterations are needed
+// to run for a given number of seconds, and then we run the benchmarks all at once
+// for the estimated number of iterations. Therefore, being a few milliseconds off
+// does not matter that much.
 #[cfg(target_arch = "wasm32")]
 impl WasmTimer {
     fn new() -> Self {
