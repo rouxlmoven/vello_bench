@@ -5,8 +5,8 @@
 
 #![allow(missing_docs, reason = "Not needed for benchmarks")]
 
+use vello_bench_core::{BenchRunner, PlatformInfo, available_level_infos};
 use wasm_bindgen::prelude::*;
-use vello_bench_core::{BenchRunner, PlatformInfo, SimdLevel};
 
 /// Initialize the WASM module.
 #[wasm_bindgen(start)]
@@ -24,14 +24,7 @@ pub fn list_benchmarks() -> JsValue {
 /// Get available SIMD levels for this platform.
 #[wasm_bindgen]
 pub fn get_simd_levels() -> JsValue {
-    let levels = SimdLevel::available();
-    let level_info: Vec<_> = levels
-        .into_iter()
-        .map(|l| serde_json::json!({
-            "id": l.suffix(),
-            "name": l.display_name(),
-        }))
-        .collect();
+    let level_info = available_level_infos();
     serde_wasm_bindgen::to_value(&level_info).unwrap()
 }
 
@@ -39,18 +32,24 @@ pub fn get_simd_levels() -> JsValue {
 #[wasm_bindgen]
 pub fn has_simd128() -> bool {
     #[cfg(target_feature = "simd128")]
-    { true }
+    {
+        true
+    }
     #[cfg(not(target_feature = "simd128"))]
-    { false }
+    {
+        false
+    }
 }
 
 /// Run a single benchmark by ID.
 #[wasm_bindgen]
 pub fn run_benchmark(id: &str, warmup_ms: u64, measurement_ms: u64) -> JsValue {
-    let runner = BenchRunner::new(warmup_ms, measurement_ms);
-    let simd_level = SimdLevel::best();
+    use fearless_simd::Level;
 
-    match vello_bench_core::run_benchmark_by_id(&runner, id, simd_level) {
+    let runner = BenchRunner::new(warmup_ms, measurement_ms);
+    let level = Level::new();
+
+    match vello_bench_core::run_benchmark_by_id(&runner, id, level) {
         Some(result) => serde_wasm_bindgen::to_value(&result).unwrap(),
         None => JsValue::NULL,
     }

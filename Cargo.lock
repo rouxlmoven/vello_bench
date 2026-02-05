@@ -4194,6 +4194,7 @@ name = "vello_bench_wasm"
 version = "0.0.0"
 dependencies = [
  "console_error_panic_hook",
+ "fearless_simd",
  "serde-wasm-bindgen",
  "serde_json",
  "vello_bench_core",

@@ -7,17 +7,13 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::LazyLock;
 use tokio::sync::Mutex;
-use vello_bench_core::{BenchRunner, BenchmarkInfo, BenchmarkResult, PlatformInfo, SimdLevel};
+use vello_bench_core::{
+    BenchRunner, BenchmarkInfo, BenchmarkResult, PlatformInfo, SimdLevelInfo,
+    available_level_infos, level_from_suffix,
+};
 
 /// Mutex to ensure only one benchmark runs at a time.
 static BENCHMARK_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
-
-/// SIMD level info for the frontend.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SimdLevelInfo {
-    pub id: String,
-    pub name: String,
-}
 
 /// Get list of available benchmarks.
 #[tauri::command]
@@ -28,13 +24,7 @@ pub fn list_benchmarks() -> Vec<BenchmarkInfo> {
 /// Get available SIMD levels.
 #[tauri::command]
 pub fn get_simd_levels() -> Vec<SimdLevelInfo> {
-    SimdLevel::available()
-        .into_iter()
-        .map(|l| SimdLevelInfo {
-            id: l.suffix().to_string(),
-            name: l.display_name().to_string(),
-        })
-        .collect()
+    available_level_infos()
 }
 
 /// Get platform info.
@@ -56,16 +46,7 @@ pub async fn run_benchmark(
 
     // Run the benchmark in a blocking thread to not block the async runtime
     tokio::task::spawn_blocking(move || {
-        // Parse simd level from string
-        let level = match simd_level.as_str() {
-            "scalar" => SimdLevel::Scalar,
-            "sse42" => SimdLevel::Sse42,
-            "avx2" => SimdLevel::Avx2,
-            "neon" => SimdLevel::Neon,
-            "wasm_simd128" => SimdLevel::WasmSimd128,
-            _ => SimdLevel::best(),
-        };
-
+        let level = level_from_suffix(&simd_level);
         let runner = BenchRunner::new(warmup_ms, measurement_ms);
         vello_bench_core::run_benchmark_by_id(&runner, &id, level)
     })
@@ -95,14 +76,7 @@ pub struct ReferenceInfo {
 /// Save benchmark results as a named reference.
 #[tauri::command]
 pub fn save_reference(name: String, results: Vec<BenchmarkResult>) -> Result<(), String> {
-    println!(
-        "save_reference called with name={:?}, results count={}",
-        name,
-        results.len()
-    );
-
     let dir = get_references_dir();
-    println!("References dir: {:?}", dir);
 
     fs::create_dir_all(&dir).map_err(|e| format!("Failed to create references directory: {e}"))?;
 
@@ -123,14 +97,12 @@ pub fn save_reference(name: String, results: Vec<BenchmarkResult>) -> Result<(),
     }
 
     let file_path = dir.join(format!("{safe_name}.json"));
-    println!("Writing to: {:?}", file_path);
 
     let json = serde_json::to_string_pretty(&results)
         .map_err(|e| format!("Failed to serialize results: {e}"))?;
 
     fs::write(&file_path, json).map_err(|e| format!("Failed to write reference file: {e}"))?;
 
-    println!("Save successful");
     Ok(())
 }
 

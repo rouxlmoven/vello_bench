@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 //! Data loading utilities for benchmarks.
+//!
+//! All assets are embedded via `include_bytes!` so they work on all platforms including WASM.
 
-#[cfg(not(target_arch = "wasm32"))]
-use std::path::Path;
 use std::sync::OnceLock;
 use usvg::tiny_skia_path::PathSegment;
 use usvg::{Group, Node};
@@ -18,40 +18,9 @@ use vello_common::{flatten, strip};
 
 static DATA: OnceLock<Vec<DataItem>> = OnceLock::new();
 
-// Embed the Ghostscript Tiger SVG for both native and WASM builds
 const TIGER_SVG: &[u8] = include_bytes!("../assets/Ghostscript_Tiger.svg");
 
 /// Get all data items for benchmarking.
-#[cfg(not(target_arch = "wasm32"))]
-pub fn get_data_items() -> &'static [DataItem] {
-    DATA.get_or_init(|| {
-        let manifest_dir = env!("CARGO_MANIFEST_DIR");
-        let base_dir = Path::new(manifest_dir).parent().unwrap();
-        let data_dir = base_dir.join("data");
-        let mut data = vec![];
-
-        // Always use embedded ghostscript tiger for consistency
-        data.push(DataItem::from_svg_data("Ghostscript_Tiger", TIGER_SVG));
-
-        // Also load any additional SVG files from the data directory
-        if data_dir.exists() {
-            for entry in std::fs::read_dir(&data_dir).unwrap() {
-                let entry = entry.unwrap();
-                let path = entry.path();
-
-                if path.extension().and_then(|e| e.to_str()) == Some("svg") {
-                    data.push(DataItem::from_path(&path));
-                }
-            }
-        }
-
-        data
-    })
-}
-
-/// Get all data items for benchmarking (WASM version).
-/// Uses embedded assets since file system access is not available.
-#[cfg(target_arch = "wasm32")]
 pub fn get_data_items() -> &'static [DataItem] {
     DATA.get_or_init(|| {
         vec![DataItem::from_svg_data("Ghostscript_Tiger", TIGER_SVG)]
@@ -68,32 +37,6 @@ pub struct DataItem {
 }
 
 impl DataItem {
-    #[cfg(not(target_arch = "wasm32"))]
-    fn from_path(path: &Path) -> Self {
-        let file_name = { path.file_stem().unwrap().to_string_lossy().to_string() };
-
-        let data = std::fs::read(path).unwrap();
-        let tree = usvg::Tree::from_data(&data, &usvg::Options::default()).unwrap();
-        let mut ctx = ConversionContext::new();
-        convert(&mut ctx, tree.root());
-
-        Self {
-            name: file_name,
-            fills: ctx.fills,
-            strokes: ctx.strokes,
-            #[expect(
-                clippy::cast_possible_truncation,
-                reason = "It's okay to ignore for benchmarking."
-            )]
-            width: tree.size().width() as u16,
-            #[expect(
-                clippy::cast_possible_truncation,
-                reason = "It's okay to ignore for benchmarking."
-            )]
-            height: tree.size().height() as u16,
-        }
-    }
-
     /// Create a DataItem from SVG data bytes.
     pub fn from_svg_data(name: &str, data: &[u8]) -> Self {
         let tree = usvg::Tree::from_data(data, &usvg::Options::default()).unwrap();

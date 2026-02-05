@@ -105,7 +105,7 @@ impl BenchRunner {
 
     /// Run a benchmark and return the result.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn run<F>(&self, id: &str, category: &str, name: &str, simd_variant: &str, f: F) -> BenchmarkResult
+    pub fn  run<F>(&self, id: &str, category: &str, name: &str, simd_variant: &str, f: F) -> BenchmarkResult
     where
         F: FnMut(),
     {

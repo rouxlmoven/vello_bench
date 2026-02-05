@@ -1,134 +1,84 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-//! SIMD level abstraction for benchmarking.
+//! Helpers for working with fearless_simd::Level in a benchmarking context.
 
 use serde::{Deserialize, Serialize};
 use vello_common::fearless_simd::Level;
 
-/// User-selectable SIMD level for benchmarks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SimdLevel {
-    /// Scalar (no SIMD).
-    Scalar,
-    /// x86_64 SSE4.2.
-    Sse42,
-    /// x86_64 AVX2.
-    Avx2,
-    /// ARM NEON.
-    Neon,
-    /// WebAssembly SIMD128.
-    WasmSimd128,
+/// Information about a SIMD level, suitable for serialization to frontends.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimdLevelInfo {
+    pub id: String,
+    pub name: String,
 }
 
-impl SimdLevel {
-    /// Returns all SIMD levels available on the current platform, ordered from best to worst.
-    /// The first element is the best (fastest) available level.
-    pub fn available() -> Vec<SimdLevel> {
-        let mut levels = vec![];
+/// Returns all SIMD levels available on the current platform, ordered from best to worst.
+///
+/// Always includes the best available level (via `Level::new()`) and the scalar fallback.
+/// On platforms where the best level is already scalar, only one entry is returned.
+pub fn available_levels() -> Vec<Level> {
+    let best = Level::new();
+    if matches!(best, Level::Fallback(_)) {
+        vec![best]
+    } else {
+        vec![best, Level::fallback()]
+    }
+}
 
-        #[cfg(target_arch = "x86_64")]
-        {
-            // AVX2 is better than SSE4.2
-            if std::arch::is_x86_feature_detected!("avx2") {
-                levels.push(SimdLevel::Avx2);
-            }
-            if std::arch::is_x86_feature_detected!("sse4.2") {
-                levels.push(SimdLevel::Sse42);
-            }
-        }
-
+/// Returns a short suffix string identifying the SIMD level (e.g., "avx2", "neon", "scalar").
+pub fn level_suffix(level: Level) -> &'static str {
+    match level {
+        Level::Fallback(_) => "scalar",
         #[cfg(target_arch = "aarch64")]
-        {
-            // NEON is always available on aarch64
-            levels.push(SimdLevel::Neon);
-        }
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            // Check for SIMD128 support - this would be set by the build
-            #[cfg(target_feature = "simd128")]
-            levels.push(SimdLevel::WasmSimd128);
-        }
-
-        // Scalar is always available as fallback (last/worst option)
-        levels.push(SimdLevel::Scalar);
-
-        levels
-    }
-
-    /// Returns the best (fastest) SIMD level available on this platform.
-    pub fn best() -> SimdLevel {
-        Self::available().into_iter().next().unwrap_or(SimdLevel::Scalar)
-    }
-
-    /// Returns the display name for this SIMD level.
-    pub fn display_name(&self) -> &'static str {
-        match self {
-            SimdLevel::Scalar => "Scalar",
-            SimdLevel::Sse42 => "SSE4.2",
-            SimdLevel::Avx2 => "AVX2",
-            SimdLevel::Neon => "NEON",
-            SimdLevel::WasmSimd128 => "WASM SIMD128",
-        }
-    }
-
-    /// Returns the suffix used in benchmark names for this SIMD level.
-    pub fn suffix(&self) -> &'static str {
-        match self {
-            SimdLevel::Scalar => "scalar",
-            SimdLevel::Sse42 => "sse42",
-            SimdLevel::Avx2 => "avx2",
-            SimdLevel::Neon => "neon",
-            SimdLevel::WasmSimd128 => "wasm_simd128",
-        }
-    }
-
-    /// Converts to fearless_simd Level, if available.
-    /// Returns None if the requested level is not available on this platform.
-    pub fn to_level(&self) -> Option<Level> {
-        match self {
-            SimdLevel::Scalar => Some(Level::fallback()),
-            #[cfg(target_arch = "x86_64")]
-            SimdLevel::Sse42 => {
-                let level = Level::new();
-                if level.as_sse42().is_some() {
-                    Some(level)
-                } else {
-                    None
-                }
-            }
-            #[cfg(target_arch = "x86_64")]
-            SimdLevel::Avx2 => {
-                let level = Level::new();
-                if level.as_avx2().is_some() {
-                    Some(level)
-                } else {
-                    None
-                }
-            }
-            #[cfg(target_arch = "aarch64")]
-            SimdLevel::Neon => Some(Level::new()),
-            #[cfg(target_arch = "wasm32")]
-            SimdLevel::WasmSimd128 => {
-                #[cfg(target_feature = "simd128")]
-                {
-                    Some(Level::new())
-                }
-                #[cfg(not(target_feature = "simd128"))]
-                {
-                    None
-                }
-            }
-            #[allow(unreachable_patterns)]
-            _ => None,
-        }
+        Level::Neon(_) => "neon",
+        #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+        Level::WasmSimd128(_) => "wasm_simd128",
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        Level::Sse4_2(_) => "sse42",
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        Level::Avx2(_) => "avx2",
+        _ => "unknown",
     }
 }
 
-impl std::fmt::Display for SimdLevel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.display_name())
+/// Returns a human-readable display name for the SIMD level (e.g., "AVX2", "NEON", "Scalar").
+pub fn level_display_name(level: Level) -> &'static str {
+    match level {
+        Level::Fallback(_) => "Scalar",
+        #[cfg(target_arch = "aarch64")]
+        Level::Neon(_) => "NEON",
+        #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+        Level::WasmSimd128(_) => "WASM SIMD128",
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        Level::Sse4_2(_) => "SSE4.2",
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        Level::Avx2(_) => "AVX2",
+        _ => "Unknown",
     }
+}
+
+/// Parse a SIMD level from a suffix string (as returned by `level_suffix`).
+/// Falls back to `Level::new()` (best available) if the string is unrecognized.
+///
+/// Note: fearless_simd's `Level::new()` always returns the best available level.
+/// Requesting a specific sub-level (e.g. "sse42" on an AVX2 machine) is not
+/// currently supported by fearless_simd, so we return the best available level
+/// in those cases.
+pub fn level_from_suffix(s: &str) -> Level {
+    match s {
+        "scalar" => Level::fallback(),
+        _ => Level::new(),
+    }
+}
+
+/// Get `SimdLevelInfo` structs for all available levels, suitable for sending to a frontend.
+pub fn available_level_infos() -> Vec<SimdLevelInfo> {
+    available_levels()
+        .into_iter()
+        .map(|l| SimdLevelInfo {
+            id: level_suffix(l).to_string(),
+            name: level_display_name(l).to_string(),
+        })
+        .collect()
 }
