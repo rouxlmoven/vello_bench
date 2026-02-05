@@ -15,14 +15,7 @@ const NAMES: &[&str] = &["block", "regular"];
 const CATEGORY: &str = "fine/pack";
 
 pub fn list() -> Vec<BenchmarkInfo> {
-    NAMES
-        .iter()
-        .map(|name| BenchmarkInfo {
-            id: format!("{CATEGORY}/{name}"),
-            category: CATEGORY.into(),
-            name: (*name).into(),
-        })
-        .collect()
+    BenchmarkInfo::from_names(CATEGORY, NAMES)
 }
 
 pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkResult> {

@@ -19,10 +19,10 @@ impl BenchRunner {
         Self { measurement_ms }
     }
 
-    /// Create a runner with default timing (6s measurement).
+    /// Create a runner with default timing (5s measurement).
     pub fn default_timing() -> Self {
         Self {
-            measurement_ms: 6000,
+            measurement_ms: 5000,
         }
     }
 
@@ -32,7 +32,7 @@ impl BenchRunner {
     where
         F: FnMut(),
     {
-        let target_ns = 500_000_000.0; // 500ms in nanoseconds
+        let target_ns = 1_500_000_000.0; // 1500ms in nanoseconds
         let mut batch_size = 1usize;
 
         loop {

@@ -27,18 +27,11 @@ const NAMES: &[&str] = &[
 ];
 const CATEGORY: &str = "fine/image";
 
-static COLR_DATA: &[u8] = include_bytes!("../../assets/big_colr.png");
-static SMALL_DATA: &[u8] = include_bytes!("../../assets/rgb_image_2x2.png");
+static COLR_DATA: &[u8] = include_bytes!("../../../assets/big_colr.png");
+static SMALL_DATA: &[u8] = include_bytes!("../../../assets/rgb_image_2x2.png");
 
 pub fn list() -> Vec<BenchmarkInfo> {
-    NAMES
-        .iter()
-        .map(|name| BenchmarkInfo {
-            id: format!("{CATEGORY}/{name}"),
-            category: CATEGORY.into(),
-            name: (*name).into(),
-        })
-        .collect()
+    BenchmarkInfo::from_names(CATEGORY, NAMES)
 }
 
 pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkResult> {

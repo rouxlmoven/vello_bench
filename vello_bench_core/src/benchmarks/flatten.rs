@@ -13,14 +13,7 @@ use vello_common::kurbo::Affine;
 const CATEGORY: &str = "flatten";
 
 pub fn list() -> Vec<BenchmarkInfo> {
-    get_data_items()
-        .iter()
-        .map(|item| BenchmarkInfo {
-            id: format!("{CATEGORY}/{}", item.name),
-            category: CATEGORY.into(),
-            name: item.name.clone(),
-        })
-        .collect()
+    BenchmarkInfo::from_data_items(CATEGORY)
 }
 
 pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkResult> {

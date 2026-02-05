@@ -5,13 +5,9 @@
 //!
 //! Each module exposes:
 //! - `list() -> Vec<BenchmarkInfo>` — the benchmarks it provides.
-//! - `run(id, runner, level) -> Option<BenchmarkResult>` — run a benchmark by name.
+//! - `run(name, runner, level) -> Option<BenchmarkResult>` — run a benchmark by name.
 
-pub mod fine_fill;
-pub mod fine_gradient;
-pub mod fine_image;
-pub mod fine_pack;
-pub mod fine_strip;
+pub mod fine;
 pub mod flatten;
 pub mod render_strips;
 pub mod strokes;
