@@ -1,5 +1,3 @@
-//! Benchmark result types.
-
 use serde::{Deserialize, Serialize};
 
 /// Statistics from a benchmark run.

@@ -1,5 +1,3 @@
-//! Helpers for working with fearless_simd::Level in a benchmarking context.
-
 use serde::{Deserialize, Serialize};
 use vello_common::fearless_simd::Level;
 

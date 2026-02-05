@@ -1,5 +1,3 @@
-//! Benchmark runner with configurable timing.
-
 use crate::result::{BenchmarkResult, PlatformInfo, Statistics};
 
 /// Configuration for benchmark runs.

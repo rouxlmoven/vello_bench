@@ -1,7 +1,3 @@
-//! Core library for vello benchmarking.
-
-#![allow(missing_docs, reason = "Not needed for benchmarks")]
-
 pub mod benchmarks;
 pub mod data;
 pub mod registry;

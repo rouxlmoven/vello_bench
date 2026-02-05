@@ -1,5 +1,3 @@
-//! Benchmark registry — chains individual benchmark modules together.
-
 use crate::benchmarks::*;
 use crate::result::BenchmarkResult;
 use crate::runner::BenchRunner;

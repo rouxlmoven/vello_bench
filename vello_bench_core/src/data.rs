@@ -1,7 +1,3 @@
-//! Data loading utilities for benchmarks.
-//!
-//! All assets are embedded via `include_bytes!` so they work on all platforms including WASM.
-
 use std::sync::OnceLock;
 use usvg::tiny_skia_path::PathSegment;
 use usvg::{Group, Node};
@@ -17,7 +13,6 @@ static DATA: OnceLock<Vec<DataItem>> = OnceLock::new();
 
 const TIGER_SVG: &[u8] = include_bytes!("../assets/Ghostscript_Tiger.svg");
 
-/// Get all data items for benchmarking.
 pub fn get_data_items() -> &'static [DataItem] {
     DATA.get_or_init(|| {
         vec![DataItem::from_svg_data("Ghostscript_Tiger", TIGER_SVG)]
