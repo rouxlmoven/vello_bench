@@ -20,6 +20,9 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
     let tiles = item.sorted_tiles();
     let simd_variant = level_suffix(level);
 
+    let mut strip_buf: Vec<Strip> = vec![];
+    let mut alpha_buf: Vec<u8> = vec![];
+
     Some(runner.run(
         &format!("{CATEGORY}/{name}"),
         CATEGORY,
@@ -27,8 +30,8 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
         simd_variant,
         #[inline(always)]
         || {
-            let mut strip_buf: Vec<Strip> = vec![];
-            let mut alpha_buf: Vec<u8> = vec![];
+            strip_buf.clear();
+            alpha_buf.clear();
 
             vello_common::strip::render(
                 level,

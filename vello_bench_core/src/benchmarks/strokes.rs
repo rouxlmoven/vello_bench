@@ -21,6 +21,9 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
     // strokes don't use SIMD level directly, but we still track the variant
     let _ = level;
 
+    let mut stroke_ctx = StrokeCtx::default();
+    let mut paths = vec![];
+
     Some(runner.run(
         &format!("{CATEGORY}/{name}"),
         CATEGORY,
@@ -28,8 +31,7 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
         simd_variant,
         #[inline(always)]
         || {
-            let mut stroke_ctx = StrokeCtx::default();
-            let mut paths = vec![];
+            paths.clear();
 
             for path in &item.strokes {
                 let stroke = Stroke { width: path.stroke_width as f64, ..Default::default() };

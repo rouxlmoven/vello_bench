@@ -30,6 +30,7 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
 
     Some(dispatch!(level, simd => {
         let fine = Fine::<_, U8Kernel>::new(simd);
+        let mut buf = vec![0; SCRATCH_BUF_SIZE];
 
         runner.run(
             &format!("{CATEGORY}/{name}"),
@@ -38,7 +39,6 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
             simd_variant,
             #[inline(always)]
             || {
-                let mut buf = vec![0; SCRATCH_BUF_SIZE];
                 let mut regions = Regions::new(width, Tile::HEIGHT, &mut buf);
                 regions.update_regions(|region| {
                     fine.pack(region);

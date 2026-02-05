@@ -18,6 +18,8 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
     let lines = item.lines();
     let simd_variant = level_suffix(level);
 
+    let mut tiles = Tiles::new(level);
+
     Some(runner.run(
         &format!("{CATEGORY}/{name}"),
         CATEGORY,
@@ -25,9 +27,9 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
         simd_variant,
         #[inline(always)]
         || {
-            let mut tiler = Tiles::new(level);
-            tiler.make_tiles_analytic_aa(&lines, item.width, item.height);
-            std::hint::black_box(&tiler);
+            tiles.reset();
+            tiles.make_tiles_analytic_aa(&lines, item.width, item.height);
+            std::hint::black_box(&tiles);
         },
     ))
 }

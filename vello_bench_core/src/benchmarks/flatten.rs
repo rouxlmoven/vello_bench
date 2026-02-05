@@ -19,6 +19,10 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
     let expanded_strokes = item.expanded_strokes();
     let simd_variant = level_suffix(level);
 
+    let mut line_buf: Vec<Line> = vec![];
+    let mut temp_buf: Vec<Line> = vec![];
+    let mut flatten_ctx = FlattenCtx::default();
+
     Some(runner.run(
         &format!("{CATEGORY}/{name}"),
         CATEGORY,
@@ -26,9 +30,7 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
         simd_variant,
         #[inline(always)]
         || {
-            let mut line_buf: Vec<Line> = vec![];
-            let mut temp_buf: Vec<Line> = vec![];
-            let mut flatten_ctx = FlattenCtx::default();
+            line_buf.clear();
 
             for path in &item.fills {
                 flatten::fill(level, &path.path, path.transform, &mut temp_buf, &mut flatten_ctx);
