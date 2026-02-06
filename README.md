@@ -19,11 +19,11 @@ A benchmarking tool for [Vello](https://github.com/linebender/vello)'s sparse st
 
 ### 1. Point Vello dependencies to your local checkout
 
-`vello_bench_core` expects a local Vello repository at `../../vello` relative to itself. Adjust the paths in `vello_bench_core/Cargo.toml` if your Vello checkout is in a different location:
+The workspace expects a local Vello repository at `../vello` relative to the project root. Adjust the paths in the root `Cargo.toml` under `[workspace.dependencies]` if your Vello checkout is in a different location:
 
 ```toml
-vello_common = { path = "../../vello/sparse_strips/vello_common" }
-vello_cpu = { path = "../../vello/sparse_strips/vello_cpu" }
+vello_common = { path = "../vello/sparse_strips/vello_common" }
+vello_cpu = { path = "../vello/sparse_strips/vello_cpu" }
 ```
 
 ### 2. Run
