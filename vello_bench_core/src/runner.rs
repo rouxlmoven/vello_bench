@@ -1,15 +1,23 @@
-use crate::{CALIBRATION_MS, MEASUREMENT_MS};
 use crate::result::{BenchmarkResult, Statistics};
 
-#[derive(Debug, Clone, Default)]
-pub struct BenchRunner;
+#[derive(Debug, Clone)]
+pub struct BenchRunner {
+    pub calibration_ms: u64,
+    pub measurement_ms: u64,
+}
 
 impl BenchRunner {
-    fn calibrate<F, T: Timer>(timer: &T, mut f: F) -> (usize, f64)
+    pub fn new(calibration_ms: u64, measurement_ms: u64) -> Self {
+        Self { calibration_ms, measurement_ms }
+    }
+}
+
+impl BenchRunner {
+    fn calibrate<F, T: Timer>(&self, timer: &T, mut f: F) -> (usize, f64)
     where
         F: FnMut(),
     {
-        let target_ns = CALIBRATION_MS as f64 * 1_000_000.0;
+        let target_ns = self.calibration_ms as f64 * 1_000_000.0;
         let mut batch_size = 1usize;
 
         loop {
@@ -55,11 +63,11 @@ impl BenchRunner {
     where
         F: FnMut(),
     {
-        let (batch_size, batch_time_ns) = Self::calibrate(timer, &mut f);
+        let (batch_size, batch_time_ns) = self.calibrate(timer, &mut f);
 
         on_calibrated();
 
-        let target_ns = MEASUREMENT_MS as f64 * 1_000_000.0;
+        let target_ns = self.measurement_ms as f64 * 1_000_000.0;
         let iters_per_ns = batch_size as f64 / batch_time_ns;
         let total_iters = (iters_per_ns * target_ns).ceil() as usize;
 

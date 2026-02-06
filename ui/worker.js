@@ -30,7 +30,7 @@ self.onmessage = async function(e) {
             }
 
             try {
-                const result = wasmModule.run_benchmark(data.id);
+                const result = wasmModule.run_benchmark(data.id, data.calibrationMs, data.measurementMs);
                 self.postMessage({ type: 'result', id: data.id, result });
             } catch (e) {
                 self.postMessage({ type: 'error', id: data.id, error: e.message });

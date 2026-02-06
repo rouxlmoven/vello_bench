@@ -24,6 +24,16 @@
                         <option value="auto">Auto</option>
                     </select>
                 </div>
+                <div class="control-group">
+                    <label for="calibration-ms">Calibration:</label>
+                    <input type="number" id="calibration-ms" min="100" step="100" class="timing-input">
+                    <span class="unit-label">ms</span>
+                </div>
+                <div class="control-group">
+                    <label for="measurement-ms">Measurement:</label>
+                    <input type="number" id="measurement-ms" min="100" step="100" class="timing-input">
+                    <span class="unit-label">ms</span>
+                </div>
                 <button id="run-btn" class="btn btn-primary">Run</button>
                 <button id="abort-btn" class="btn btn-abort" style="display: none;">Abort</button>
                 <button id="export-results" class="btn">Export JSON</button>

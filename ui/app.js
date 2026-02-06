@@ -1,7 +1,7 @@
 // Vello Benchmark Suite - Web UI
 
-// Keep in sync with CALIBRATION_MS in vello_bench_core/src/lib.rs.
-const CALIBRATION_MS = 2000;
+const DEFAULT_CALIBRATION_MS = 100;
+const DEFAULT_MEASUREMENT_MS = 200;
 
 // State
 const state = {
@@ -150,6 +150,10 @@ async function switchWasmSimdLevel(level) {
 async function init() {
     state.isTauri = detectTauri();
     console.log('Tauri detected:', state.isTauri);
+
+    // Set timing input defaults
+    document.getElementById('calibration-ms').value = DEFAULT_CALIBRATION_MS;
+    document.getElementById('measurement-ms').value = DEFAULT_MEASUREMENT_MS;
 
     // Update execution mode dropdown
     const execMode = document.getElementById('exec-mode');
@@ -447,14 +451,24 @@ function renderResults() {
     // Results are displayed inline in the benchmark table
 }
 
+// Read timing configuration from the UI inputs
+function getTimingConfig() {
+    const calibrationMs = Math.max(100, parseInt(document.getElementById('calibration-ms').value) || DEFAULT_CALIBRATION_MS);
+    const measurementMs = Math.max(100, parseInt(document.getElementById('measurement-ms').value) || DEFAULT_MEASUREMENT_MS);
+    return { calibrationMs, measurementMs };
+}
+
 // Run a single benchmark
 async function runSingleBenchmark(id) {
     const simdLevel = document.getElementById('simd-level').value;
+    const { calibrationMs, measurementMs } = getTimingConfig();
 
     if (state.executionMode === 'native' && state.isTauri) {
         return await invoke('run_benchmark', {
             id: id,
             simdLevel: simdLevel,
+            calibrationMs,
+            measurementMs,
         });
     } else if (state.wasmWorker) {
         // WASM benchmarks run in a Web Worker to avoid blocking the UI
@@ -463,6 +477,8 @@ async function runSingleBenchmark(id) {
             state.wasmWorker.postMessage({
                 type: 'run',
                 id: id,
+                calibrationMs,
+                measurementMs,
             });
         });
     }
@@ -514,13 +530,12 @@ async function runBenchmarks(ids) {
         state.runningPhase = 'calibrating';
         renderBenchmarks();
 
-        // Keep in sync with CALIBRATION_MS in vello_bench_core/src/lib.rs.
         const phaseTimer = setTimeout(() => {
             if (state.runningBenchmark === id && state.runningPhase === 'calibrating') {
                 state.runningPhase = 'measuring';
                 renderBenchmarks();
             }
-        }, 2000);
+        }, getTimingConfig().calibrationMs);
 
         // Allow UI to update
         await new Promise(resolve => setTimeout(resolve, 0));
