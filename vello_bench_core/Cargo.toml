@@ -11,7 +11,6 @@ vello_common = { path = "../../vello/sparse_strips/vello_common" }
 vello_cpu = { path = "../../vello/sparse_strips/vello_cpu" }
 fearless_simd = "0.3"
 serde = { version = "1", features = ["derive"] }
-image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 rand = { version = "0.9", default-features = false, features = ["std", "std_rng"] }
 smallvec = "1.14"
 usvg = { version = "0.45", default-features = false }
