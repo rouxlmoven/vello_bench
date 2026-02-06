@@ -56,6 +56,7 @@ This launches the Tauri desktop app, which can run benchmarks both natively and 
 
 ## Benchmark Stability
 
-Some benchmarks may produce unstable results between runs (in my case the tile benchmark sometimes was very random). 
+Some benchmarks may produce unstable results between runs (in my case the tile benchmark sometimes was very random. However,
+it also is in the original vello benchmark harness, so I don't think it's an issue with the setup in this repo). 
 So make sure to experiment by running your target benchmark multiple times, and you can also increase the calibration 
 and measurement times in the UI to (hopefully) improve stability, at the cost of longer waiting times.
