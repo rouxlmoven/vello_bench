@@ -1,7 +1,7 @@
 // Vello Benchmark Suite - Web UI
 
-const DEFAULT_CALIBRATION_MS = 100;
-const DEFAULT_MEASUREMENT_MS = 200;
+const DEFAULT_CALIBRATION_MS = 200;
+const DEFAULT_MEASUREMENT_MS = 500;
 
 // State
 const state = {
