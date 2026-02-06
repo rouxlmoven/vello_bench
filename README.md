@@ -47,10 +47,9 @@ This starts a local HTTP server at `http://localhost:8080`. Open it in any brows
 **Option B: Tauri app (native + WASM)**
 
 ```sh
-cd vello_bench_tauri
-cargo tauri dev --release
+./tauri.sh
 ```
 
 This launches the Tauri desktop app, which can run benchmarks both natively and in WASM, allowing direct comparison between the two.
 
-> **Note:** The Tauri app does not automatically rebuild the WASM blobs. If you make changes to `vello_bench_core` or `vello_bench_wasm`, you need to re-run `./build.sh` before launching the Tauri app to see the updated WASM results. Native benchmarks will pick up changes automatically.
+> **Note:** `./tauri.sh` automatically rebuilds the WASM blobs before launching. If you run `cargo tauri dev` directly instead, you need to manually re-run `./build.sh` after changes to `vello_bench_core` or `vello_bench_wasm` to see updated WASM results.
