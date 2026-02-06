@@ -1,7 +1,7 @@
 #!/bin/bash
 # Serve the benchmark UI for browser testing
 
-UI_DIR="$(dirname "$0")/../ui"
+UI_DIR="$(dirname "$0")/ui"
 PORT="8080"
 SERVER_PID=""
 
