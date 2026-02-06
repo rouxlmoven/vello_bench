@@ -27,7 +27,6 @@ pub fn run(name: &str, runner: &BenchRunner, level: Level) -> Option<BenchmarkRe
         simd_variant,
         #[inline(always)]
         || {
-            tiles.reset();
             tiles.make_tiles_analytic_aa(&lines, item.width, item.height);
             std::hint::black_box(&tiles);
         },
