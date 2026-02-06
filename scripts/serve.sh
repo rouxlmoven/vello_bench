@@ -1,7 +1,7 @@
 #!/bin/bash
 # Serve the benchmark UI for browser testing
 
-UI_DIR="$(dirname "$0")/../vello_bench_tauri/ui"
+UI_DIR="$(dirname "$0")/../ui"
 PORT="8080"
 BROWSER=""
 SERVER_PID=""
