@@ -3,7 +3,6 @@
 
 UI_DIR="$(dirname "$0")/../ui"
 PORT="8080"
-BROWSER=""
 SERVER_PID=""
 
 # Cleanup function to kill server on exit
@@ -20,24 +19,12 @@ trap cleanup INT TERM EXIT
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --firefox|-f)
-            BROWSER="firefox"
-            shift
-            ;;
-        --safari|-s)
-            BROWSER="safari"
-            shift
-            ;;
-        --chrome|-c)
-            BROWSER="chrome"
-            shift
-            ;;
         --port|-p)
             PORT="$2"
             shift 2
             ;;
         *)
-            echo "Usage: $0 [--firefox|-f] [--safari|-s] [--chrome|-c] [--port|-p PORT]"
+            echo "Usage: $0 [--port|-p PORT]"
             exit 1
             ;;
     esac
@@ -70,25 +57,6 @@ echo ""
 # Start server in background
 cd "$UI_DIR" && $PYTHON -m http.server "$PORT" &
 SERVER_PID=$!
-
-# Wait for server to start
-sleep 0.5
-
-# Open browser if specified
-if [[ -n "$BROWSER" ]]; then
-    echo "Opening $BROWSER..."
-    case "$BROWSER" in
-        firefox)
-            open -a "Firefox" "$URL" 2>/dev/null || firefox "$URL" &
-            ;;
-        safari)
-            open -a "Safari" "$URL" &
-            ;;
-        chrome)
-            open -a "Google Chrome" "$URL" 2>/dev/null || google-chrome "$URL" &
-            ;;
-    esac
-fi
 
 # Wait for server process (Ctrl+C will trigger cleanup)
 wait $SERVER_PID
