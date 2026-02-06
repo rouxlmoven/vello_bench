@@ -684,7 +684,8 @@ function calculateComparison(currentNs, referenceNs) {
     let percentChange = (diff / referenceNs) * 100;
     const speedup = referenceNs / currentNs;
 
-    if (Math.abs(percentChange) < 0.05) {
+    // Round small values to just 0.
+    if (Math.abs(percentChange) < 0.005) {
         percentChange = 0;
     }
 
