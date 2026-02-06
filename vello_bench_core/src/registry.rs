@@ -55,14 +55,11 @@ pub fn get_benchmark_list() -> Vec<BenchmarkInfo> {
     benchmarks
 }
 
-/// Run a benchmark by ID with a specific SIMD level.
-/// Returns None if the benchmark ID is not found.
 pub fn run_benchmark_by_id(
     runner: &BenchRunner,
     id: &str,
     level: Level,
 ) -> Option<BenchmarkResult> {
-    // Try each category by stripping its prefix and delegating to the module.
     if let Some(name) = id.strip_prefix("fine/fill/") {
         return fine::fill::run(name, runner, level);
     }

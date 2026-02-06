@@ -1,13 +1,10 @@
 use crate::{CALIBRATION_MS, MEASUREMENT_MS};
 use crate::result::{BenchmarkResult, Statistics};
 
-/// Benchmark runner.
 #[derive(Debug, Clone, Default)]
 pub struct BenchRunner;
 
 impl BenchRunner {
-    /// Calibrate to find iteration count that fills the calibration window.
-    /// Returns (batch_size, batch_time_ns).
     fn calibrate<F, T: Timer>(timer: &T, mut f: F) -> (usize, f64)
     where
         F: FnMut(),
@@ -79,41 +76,20 @@ impl BenchRunner {
     }
 
     /// Run a benchmark and return the result.
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn run<F>(&self, id: &str, category: &str, name: &str, simd_variant: &str, f: F) -> BenchmarkResult
     where
         F: FnMut(),
     {
-        self.run_with_timer(&NativeTimer, id, category, name, simd_variant, f, || {})
+        self.run_with_timer(&PlatformTimer::default(), id, category, name, simd_variant, f, || {})
     }
 
     /// Run a benchmark with a callback when calibration completes.
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn run_with_callback<F, C>(&self, id: &str, category: &str, name: &str, simd_variant: &str, f: F, on_calibrated: C) -> BenchmarkResult
     where
         F: FnMut(),
         C: FnOnce(),
     {
-        self.run_with_timer(&NativeTimer, id, category, name, simd_variant, f, on_calibrated)
-    }
-
-    /// Run a benchmark and return the result (WASM version).
-    #[cfg(target_arch = "wasm32")]
-    pub fn run<F>(&self, id: &str, category: &str, name: &str, simd_variant: &str, f: F) -> BenchmarkResult
-    where
-        F: FnMut(),
-    {
-        self.run_with_timer(&WasmTimer::new(), id, category, name, simd_variant, f, || {})
-    }
-
-    /// Run a benchmark with a callback when calibration completes (WASM version).
-    #[cfg(target_arch = "wasm32")]
-    pub fn run_with_callback<F, C>(&self, id: &str, category: &str, name: &str, simd_variant: &str, f: F, on_calibrated: C) -> BenchmarkResult
-    where
-        F: FnMut(),
-        C: FnOnce(),
-    {
-        self.run_with_timer(&WasmTimer::new(), id, category, name, simd_variant, f, on_calibrated)
+        self.run_with_timer(&PlatformTimer::default(), id, category, name, simd_variant, f, on_calibrated)
     }
 }
 
@@ -126,9 +102,19 @@ trait Timer {
     fn timestamp_ms(&self) -> u64;
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+type PlatformTimer = NativeTimer;
+#[cfg(target_arch = "wasm32")]
+type PlatformTimer = WasmTimer;
+
 /// Native timer using std::time.
 #[cfg(not(target_arch = "wasm32"))]
 struct NativeTimer;
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Default for NativeTimer {
+    fn default() -> Self { Self }
+}
 
 #[cfg(not(target_arch = "wasm32"))]
 impl Timer for NativeTimer {
@@ -175,6 +161,11 @@ impl WasmTimer {
 
         Self { performance }
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl Default for WasmTimer {
+    fn default() -> Self { Self::new() }
 }
 
 #[cfg(target_arch = "wasm32")]
