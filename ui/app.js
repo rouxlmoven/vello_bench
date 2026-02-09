@@ -10,6 +10,7 @@ const state = {
     queuedBenchmarks: new Set(),
     runningBenchmark: null,
     runningPhase: null,
+    activeTab: 'micro', // 'micro' or 'scene'
     currentCategory: 'all',
     expandedCategories: new Set(),
     isRunning: false,
@@ -23,7 +24,16 @@ const state = {
     references: [],
     loadedReference: null,
     referenceResults: new Map(),
+    // Main-thread WASM module for hybrid WebGL benchmarks
+    mainThreadWasm: null,
+    hybridCanvas: null,
+    hybridInitialized: false,
 };
+
+// Returns true if the given category belongs to the "scene" tab.
+function isSceneCategory(category) {
+    return category.startsWith('scene_');
+}
 
 function detectTauri() {
     return window.__TAURI__ !== undefined;
@@ -99,6 +109,48 @@ async function loadWasm() {
     return await loadWasmFrom(pkgDir);
 }
 
+// Load the WASM module on the main thread for hybrid WebGL benchmarks.
+// This is separate from the worker-loaded module.
+async function loadMainThreadWasm() {
+    try {
+        const pkgDir = state.wasmSimd128Available ? 'pkg-simd' : 'pkg';
+        const module = await import(`./${pkgDir}/vello_bench_wasm.js`);
+        await module.default();
+        state.mainThreadWasm = module;
+        return true;
+    } catch (e) {
+        console.error('Failed to load main-thread WASM:', e);
+        return false;
+    }
+}
+
+// Initialize the hybrid WebGL renderer with a hidden canvas.
+function initHybridRenderer() {
+    if (state.hybridInitialized || !state.mainThreadWasm) return false;
+    try {
+        // Create a hidden canvas for WebGL rendering
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 768;
+        canvas.style.display = 'none';
+        canvas.id = 'hybrid-bench-canvas';
+        document.body.appendChild(canvas);
+        state.hybridCanvas = canvas;
+
+        const success = state.mainThreadWasm.init_hybrid(canvas);
+        state.hybridInitialized = success;
+        return success;
+    } catch (e) {
+        console.error('Failed to init hybrid renderer:', e);
+        return false;
+    }
+}
+
+// Check if a benchmark ID is a hybrid scene benchmark
+function isHybridBenchmark(id) {
+    return id.startsWith('scene_hybrid/');
+}
+
 async function switchWasmSimdLevel(level) {
     if (level === state.wasmSimdLevel) return true;
 
@@ -139,10 +191,20 @@ async function init() {
         return;
     }
 
+    // Load main-thread WASM for hybrid WebGL benchmarks.
+    // This is needed in both Tauri and browser modes so that scene_hybrid
+    // benchmarks can run via WebGL on the main thread when WASM mode is selected.
+    const mainLoaded = await loadMainThreadWasm();
+    if (mainLoaded) {
+        initHybridRenderer();
+    }
+
     await loadSimdLevels();
     await loadBenchmarks();
     await loadReferencesList();
     setupEventListeners();
+    setupScreenshotDialogListeners();
+    updateSkiaBadge();
 }
 
 async function loadSimdLevels() {
@@ -183,12 +245,7 @@ async function loadBenchmarks() {
             state.benchmarks = [];
         }
 
-        const categories = new Set(['all']);
-        state.benchmarks.forEach(b => {
-            if (b.category) categories.add(b.category);
-        });
-
-        renderCategories(Array.from(categories));
+        renderCategories(Array.from(getCategorySet()));
         renderBenchmarks();
         updateStats();
         updateRunButtons();
@@ -268,14 +325,26 @@ function renderCategories(categories) {
 function getCategorySet() {
     const categories = new Set(['all']);
     state.benchmarks.forEach(b => {
-        if (b.category) categories.add(b.category);
+        if (b.category) {
+            // Only include categories matching the active tab
+            const scene = isSceneCategory(b.category);
+            if ((state.activeTab === 'scene' && scene) || (state.activeTab === 'micro' && !scene)) {
+                categories.add(b.category);
+            }
+        }
     });
     return categories;
 }
 
 function getFilteredBenchmarks() {
-    if (state.currentCategory === 'all') return state.benchmarks;
-    return state.benchmarks.filter(b =>
+    // First filter by active tab (scene vs micro)
+    const tabFiltered = state.benchmarks.filter(b => {
+        const scene = isSceneCategory(b.category);
+        return state.activeTab === 'scene' ? scene : !scene;
+    });
+
+    if (state.currentCategory === 'all') return tabFiltered;
+    return tabFiltered.filter(b =>
         b.category === state.currentCategory ||
         b.category.startsWith(state.currentCategory + '/')
     );
@@ -292,7 +361,7 @@ function renderBenchmarks() {
     }
 
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="no-results">No benchmarks available.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="no-results">No benchmarks available.</td></tr>';
         return;
     }
 
@@ -348,6 +417,8 @@ function renderBenchmarks() {
         const rowClasses = [status];
         if (isSelected) rowClasses.push('selected');
 
+        const isScene = isSceneCategory(bench.category);
+
         return `
             <tr class="${rowClasses.join(' ')}" data-id="${bench.id}">
                 <td class="col-select">
@@ -359,6 +430,9 @@ function renderBenchmarks() {
                 <td class="col-mean"><span class="result-mean">${meanStr}</span></td>
                 <td class="col-ref"><span class="result-ref">${refStr}</span></td>
                 <td class="col-change"><span class="result-change ${changeClass}">${changeStr}</span></td>
+                <td class="col-actions">${isScene
+                    ? `<button class="screenshot-btn" data-screenshot="${bench.id}" title="Capture screenshot">&#128247;</button>`
+                    : ''}</td>
             </tr>
         `;
     }).join('');
@@ -377,10 +451,15 @@ function formatTime(meanNs) {
 }
 
 function updateStats() {
+    const tabFiltered = state.benchmarks.filter(b => {
+        const scene = isSceneCategory(b.category);
+        return state.activeTab === 'scene' ? scene : !scene;
+    });
+    const completedCount = tabFiltered.filter(b => state.results.has(b.id)).length;
     document.getElementById('bench-count').textContent =
-        `${state.benchmarks.length} benchmarks`;
+        `${tabFiltered.length} benchmarks`;
     document.getElementById('bench-completed').textContent =
-        `${state.results.size} completed`;
+        `${completedCount} completed`;
 }
 
 function getTimingConfig() {
@@ -395,7 +474,18 @@ async function runSingleBenchmark(id) {
 
     if (state.executionMode === 'native' && state.isTauri) {
         return await invoke('run_benchmark', { id, simdLevel, calibrationMs, measurementMs });
-    } else if (state.wasmWorker) {
+    }
+
+    // Hybrid WebGL benchmarks run on the main thread (needs canvas/WebGL context)
+    if (isHybridBenchmark(id) && state.hybridInitialized && state.mainThreadWasm) {
+        // Yield to let the UI update before blocking the main thread
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const result = state.mainThreadWasm.run_hybrid_benchmark(id, calibrationMs, measurementMs);
+        return result;
+    }
+
+    // All other benchmarks run in the web worker
+    if (state.wasmWorker) {
         return new Promise((resolve) => {
             state.pendingWasmResolve = resolve;
             state.wasmWorker.postMessage({ type: 'run', id, calibrationMs, measurementMs });
@@ -701,11 +791,161 @@ function calculateComparison(currentNs, referenceNs) {
     return { diff, percentChange, speedup, status };
 }
 
+// ---------------------------------------------------------------------------
+// Screenshot capture
+// ---------------------------------------------------------------------------
+
+async function captureScreenshot(benchId) {
+    const dialog = document.getElementById('screenshot-dialog');
+    const title = document.getElementById('screenshot-dialog-title');
+    const body = document.getElementById('screenshot-dialog-body');
+    // Extract the scene name and category from the benchmark ID
+    let sceneName, category;
+    if (benchId.startsWith('scene_cpu/')) {
+        sceneName = benchId.slice('scene_cpu/'.length);
+        category = 'scene_cpu';
+    } else if (benchId.startsWith('scene_hybrid/')) {
+        sceneName = benchId.slice('scene_hybrid/'.length);
+        category = 'scene_hybrid';
+    } else if (benchId.startsWith('scene_skia/')) {
+        sceneName = benchId.slice('scene_skia/'.length);
+        category = 'scene_skia';
+    } else {
+        return;
+    }
+
+    title.textContent = `Screenshot: ${sceneName} (${category})`;
+    body.innerHTML = '<p class="screenshot-loading">Rendering...</p>';
+    dialog.style.display = 'flex';
+
+    // Yield to let the dialog render
+    await new Promise(r => setTimeout(r, 0));
+
+    try {
+        let dataUrl;
+
+        if (state.isTauri && state.executionMode === 'native') {
+            // Tauri native: render via Tauri command using the matching renderer
+            // This handles all categories: scene_cpu, scene_hybrid, scene_skia
+            const result = await invoke('screenshot', { sceneName, category });
+            if (!result) throw new Error('Screenshot failed');
+            const rgba = Uint8ClampedArray.from(atob(result.rgba_base64), c => c.charCodeAt(0));
+            dataUrl = rgbaToDataUrl(rgba, result.width, result.height);
+        } else if (category === 'scene_hybrid' && state.hybridInitialized && state.mainThreadWasm) {
+            // Hybrid WebGL: render once to canvas, then grab its content
+            const success = state.mainThreadWasm.render_hybrid_once(sceneName);
+            if (!success) throw new Error('Hybrid render failed');
+            dataUrl = state.hybridCanvas.toDataURL('image/png');
+        } else if (category === 'scene_cpu' && state.mainThreadWasm) {
+            // CPU: render via WASM and get raw pixel data
+            const result = state.mainThreadWasm.screenshot_cpu(sceneName);
+            if (!result) throw new Error('CPU screenshot failed');
+            dataUrl = rgbaToDataUrl(result.data, result.width, result.height);
+        } else if (category === 'scene_skia') {
+            throw new Error('Skia screenshots are only available in native mode');
+        } else {
+            throw new Error('No rendering backend available for screenshots');
+        }
+
+        // Display the screenshot
+        const img = new Image();
+        img.onload = () => {
+            body.innerHTML = '';
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            body.appendChild(canvas);
+
+            const info = document.createElement('p');
+            info.className = 'screenshot-info';
+            info.textContent = `${img.width} x ${img.height} px`;
+            body.appendChild(info);
+
+        };
+        img.src = dataUrl;
+    } catch (err) {
+        body.innerHTML = `<p class="screenshot-loading" style="color: var(--danger);">Error: ${err.message}</p>`;
+        console.error('Screenshot failed:', err);
+    }
+}
+
+// Convert raw RGBA pixel data to a PNG data URL via an off-screen canvas.
+function rgbaToDataUrl(rgbaBytes, width, height) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    const imageData = new ImageData(rgbaBytes, width, height);
+    ctx.putImageData(imageData, 0, 0);
+    return canvas.toDataURL('image/png');
+}
+
+function setupScreenshotDialogListeners() {
+    const dialog = document.getElementById('screenshot-dialog');
+    const closeBtn = document.getElementById('screenshot-dialog-close');
+    const dismissBtn = document.getElementById('screenshot-dialog-dismiss');
+
+    const close = () => { dialog.style.display = 'none'; };
+    closeBtn.addEventListener('click', close);
+    dismissBtn.addEventListener('click', close);
+    dialog.addEventListener('click', (e) => {
+        if (e.target === dialog) close();
+    });
+}
+
+// Update the Skia availability badge visibility based on active tab and mode.
+function updateSkiaBadge() {
+    const badge = document.getElementById('skia-badge');
+    if (!badge) return;
+
+    if (state.activeTab === 'scene') {
+        badge.style.display = 'inline-block';
+        if (state.executionMode === 'native' && state.isTauri) {
+            badge.textContent = 'Skia: available';
+            badge.classList.add('skia-available');
+            badge.classList.remove('skia-unavailable');
+        } else {
+            badge.textContent = 'Skia: native only';
+            badge.classList.add('skia-unavailable');
+            badge.classList.remove('skia-available');
+        }
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+// Switch the active tab and re-render.
+function switchTab(tab) {
+    if (state.activeTab === tab) return;
+    state.activeTab = tab;
+    state.currentCategory = 'all';
+
+    // Update tab button active states
+    document.querySelectorAll('.tab-item').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+
+    document.getElementById('current-category').textContent = 'All Benchmarks';
+
+    renderCategories(Array.from(getCategorySet()));
+    renderBenchmarks();
+    updateStats();
+    updateSkiaBadge();
+}
+
 function setupEventListeners() {
+    // Tab switching
+    document.querySelectorAll('.tab-item').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
     document.getElementById('exec-mode').addEventListener('change', async (e) => {
         state.executionMode = e.target.value;
         await loadSimdLevels();
         await loadBenchmarks();
+        updateSkiaBadge();
     });
 
     document.getElementById('simd-level').addEventListener('change', async (e) => {
@@ -744,6 +984,15 @@ function setupEventListeners() {
     });
 
     document.getElementById('benchmark-tbody').addEventListener('click', (e) => {
+        // Handle screenshot button clicks
+        const screenshotBtn = e.target.closest('.screenshot-btn');
+        if (screenshotBtn) {
+            e.stopPropagation();
+            const benchId = screenshotBtn.dataset.screenshot;
+            captureScreenshot(benchId);
+            return;
+        }
+
         if (state.isRunning) return;
 
         const row = e.target.closest('tr');
