@@ -40,6 +40,12 @@
             </div>
         </header>
 
+        <nav class="tab-bar">
+            <button class="tab-item active" data-tab="micro">Micro Benchmarks</button>
+            <button class="tab-item" data-tab="scene">Scene Benchmarks</button>
+            <span id="skia-badge" class="skia-badge" style="display: none;">Skia: native only</span>
+        </nav>
+
         <div class="main-content">
             <aside class="sidebar">
                 <h2>Categories</h2>
@@ -80,6 +86,7 @@
                                 <th class="col-mean">Time</th>
                                 <th class="col-ref">Reference</th>
                                 <th class="col-change">Change</th>
+                                <th class="col-actions"></th>
                             </tr>
                         </thead>
                         <tbody id="benchmark-tbody">
@@ -111,6 +118,22 @@
             <div class="dialog-buttons">
                 <button id="confirm-dialog-cancel" class="btn">Cancel</button>
                 <button id="confirm-dialog-confirm" class="btn btn-danger">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screenshot Dialog -->
+    <div id="screenshot-dialog" class="dialog-overlay" style="display: none;">
+        <div class="dialog dialog-wide">
+            <div class="dialog-header">
+                <h3 id="screenshot-dialog-title">Screenshot</h3>
+                <button id="screenshot-dialog-close" class="btn btn-small">&times;</button>
+            </div>
+            <div id="screenshot-dialog-body" class="screenshot-body">
+                <p class="screenshot-loading">Rendering...</p>
+            </div>
+            <div class="dialog-buttons">
+                <button id="screenshot-dialog-dismiss" class="btn">Close</button>
             </div>
         </div>
     </div>

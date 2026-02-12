@@ -51,6 +51,9 @@ pub fn get_benchmark_list() -> Vec<BenchmarkInfo> {
     benchmarks.extend(flatten::list());
     benchmarks.extend(strokes::list());
     benchmarks.extend(render_strips::list());
+    benchmarks.extend(scene_cpu::list());
+    benchmarks.extend(scene_hybrid::list());
+    benchmarks.extend(scene_skia::list());
 
     benchmarks
 }
@@ -86,6 +89,15 @@ pub fn run_benchmark_by_id(
     }
     if let Some(name) = id.strip_prefix("render_strips/") {
         return render_strips::run(name, runner, level);
+    }
+    if let Some(name) = id.strip_prefix("scene_cpu/") {
+        return scene_cpu::run(name, runner, level);
+    }
+    if let Some(name) = id.strip_prefix("scene_hybrid/") {
+        return scene_hybrid::run(name, runner, level);
+    }
+    if let Some(name) = id.strip_prefix("scene_skia/") {
+        return scene_skia::run(name, runner, level);
     }
 
     None

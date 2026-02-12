@@ -143,6 +143,55 @@ input[type="number"] {
 }
 
 
+/* Tab Bar */
+.tab-bar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: 0 1rem;
+}
+
+.tab-item {
+    padding: 0.45rem 1rem;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab-item:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.tab-item.active {
+    color: var(--text-primary);
+    border-bottom-color: var(--accent-primary);
+}
+
+.skia-badge {
+    margin-left: auto;
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+.skia-badge.skia-available {
+    background: rgba(76, 175, 80, 0.2);
+    color: var(--success);
+}
+
+.skia-badge.skia-unavailable {
+    background: rgba(160, 160, 160, 0.15);
+    color: var(--text-secondary);
+}
+
 /* Main Content */
 .main-content {
     display: flex;
@@ -476,6 +525,74 @@ input[type="number"] {
     display: flex;
     justify-content: flex-end;
     gap: 0.5rem;
+}
+
+/* Screenshot dialog */
+.dialog-wide {
+    max-width: 90vw;
+    width: auto;
+    min-width: 400px;
+}
+
+.dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.dialog-header h3 {
+    margin: 0;
+}
+
+.screenshot-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    max-height: 70vh;
+    overflow: auto;
+}
+
+.screenshot-body canvas {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: repeating-conic-gradient(#808080 0% 25%, #c0c0c0 0% 50%) 50% / 16px 16px;
+}
+
+.screenshot-loading {
+    padding: 2rem;
+    color: var(--text-secondary);
+}
+
+.screenshot-info {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.col-actions {
+    width: 40px;
+    text-align: center;
+}
+
+.screenshot-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+}
+
+.screenshot-btn:hover {
+    background: var(--accent-primary);
+    color: white;
+    border-color: var(--accent-primary);
 }
 
 /* Responsive */

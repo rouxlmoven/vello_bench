@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use std::sync::LazyLock;
 use tokio::sync::Mutex;
 use vello_bench_core::{
-    BenchRunner, BenchmarkInfo, BenchmarkResult, SimdLevelInfo,
-    available_level_infos, level_from_suffix,
+    available_level_infos, level_from_suffix, BenchRunner, BenchmarkInfo, BenchmarkResult,
+    SimdLevelInfo,
 };
 
 /// Mutex to ensure only one benchmark runs at a time.
@@ -152,10 +152,47 @@ pub fn load_reference(name: String) -> Result<Vec<BenchmarkResult>, String> {
     let dir = get_references_dir();
     let file_path = dir.join(format!("{name}.json"));
 
-    let content =
-        fs::read_to_string(&file_path).map_err(|e| format!("Failed to read reference file: {e}"))?;
+    let content = fs::read_to_string(&file_path)
+        .map_err(|e| format!("Failed to read reference file: {e}"))?;
 
     serde_json::from_str(&content).map_err(|e| format!("Failed to parse reference file: {e}"))
+}
+
+/// Render a scene using the corresponding renderer and return the pixel data.
+/// `category` should be `"scene_cpu"` or `"scene_hybrid"` to select the renderer.
+/// Returns `{ width, height, rgba_base64 }` where `rgba_base64` is the
+/// non-premultiplied RGBA8 pixel data encoded as base64.
+#[tauri::command]
+pub async fn screenshot(scene_name: String, category: String) -> Option<ScreenshotResponse> {
+    use base64::Engine;
+
+    tokio::task::spawn_blocking(move || {
+        let result = match category.as_str() {
+            "scene_cpu" => vello_bench_core::screenshot::render_scene_cpu(
+                &scene_name,
+                vello_bench_core::Level::new(),
+            ),
+            "scene_hybrid" => vello_bench_core::screenshot::render_scene_hybrid(&scene_name),
+            "scene_skia" => vello_bench_core::screenshot::render_scene_skia(&scene_name),
+            _ => None,
+        }?;
+        let rgba_base64 = base64::engine::general_purpose::STANDARD.encode(&result.rgba);
+        Some(ScreenshotResponse {
+            width: result.width,
+            height: result.height,
+            rgba_base64,
+        })
+    })
+    .await
+    .ok()
+    .flatten()
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ScreenshotResponse {
+    pub width: u32,
+    pub height: u32,
+    pub rgba_base64: String,
 }
 
 /// Delete a reference file by name.

@@ -13,6 +13,8 @@ unsafe_code = "deny"
 vello_bench_core = { path = "vello_bench_core" }
 vello_common = { path = "../vello/sparse_strips/vello_common" }
 vello_cpu = { path = "../vello/sparse_strips/vello_cpu" }
+vello_hybrid = { path = "../vello/sparse_strips/vello_hybrid", default-features = false }
+vello_api = { path = "../vello/sparse_strips/vello_api" }
 fearless_simd = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -20,7 +22,7 @@ serde-wasm-bindgen = "0.6"
 rand = { version = "0.9", default-features = false, features = ["std", "std_rng"] }
 smallvec = "1.14"
 usvg = { version = "0.45", default-features = false }
-web-sys = { version = "0.3", features = ["Performance"] }
+web-sys = { version = "0.3", features = ["Performance", "console"] }
 js-sys = "0.3"
 wasm-bindgen = "0.2"
 console_error_panic_hook = "0.1"
@@ -28,3 +30,19 @@ tauri = { version = "2", features = ["devtools"] }
 tauri-build = { version = "2", features = [] }
 tokio = { version = "1", features = ["sync"] }
 dirs = "5"
+
+# AnyRender crates
+## Use local branch corresponding to this [PR](https://github.com/DioxusLabs/anyrender/pull/45).
+anyrender = { git = "https://github.com/taj-p/anyrender", rev = "80338d11ad6ae5f1a42b3e188b310cc52783f418", features = ["serde"] }
+anyrender_serialize = { git = "https://github.com/taj-p/anyrender", rev = "80338d11ad6ae5f1a42b3e188b310cc52783f418" }
+anyrender_vello_cpu = { git = "https://github.com/taj-p/anyrender", rev = "80338d11ad6ae5f1a42b3e188b310cc52783f418" }
+anyrender_vello_hybrid = { git = "https://github.com/taj-p/anyrender", rev = "80338d11ad6ae5f1a42b3e188b310cc52783f418" }
+anyrender_skia = { git = "https://github.com/taj-p/anyrender", rev = "80338d11ad6ae5f1a42b3e188b310cc52783f418" }
+
+# Patch crates.io dependencies to use local versions so anyrender's
+# transitive vello deps resolve to the same local crates we use.
+[patch.crates-io]
+vello_cpu = { path = "../vello/sparse_strips/vello_cpu" }
+vello_hybrid = { path = "../vello/sparse_strips/vello_hybrid" }
+vello_common = { path = "../vello/sparse_strips/vello_common" }
+vello_api = { path = "../vello/sparse_strips/vello_api" }

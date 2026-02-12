@@ -44,6 +44,18 @@ Builds the WASM blobs and starts a local HTTP server at `http://localhost:8080`.
 
 Builds the WASM blobs and launches the Tauri desktop app, which can run benchmarks both natively and in WASM, allowing direct comparison between the two.
 
+## Adding Scenes
+
+Scene benchmarks are driven by [AnyRender](https://github.com/niclasberg/anyrender) serialized scene files. To add a new scene:
+
+1. Create a `.anyrender.zip` archive using `anyrender_serialize` (see the [serialize example](https://github.com/DioxusLabs/anyrender/blob/main/examples/serialize/src/main.rs) in the AnyRender repo).
+2. Drop the file into the `scenes/` directory at the repository root. The file must be named `<scene_name>.anyrender.zip` (e.g. `my_scene.anyrender.zip`).
+3. Rebuild. The build script auto-discovers all `.anyrender.zip` files in `scenes/` and embeds them into the binary. No code changes are needed.
+
+The scene name shown in the UI is derived from the file name (everything before `.anyrender.zip`). Each scene is benchmarked across all renderer backends (Vello CPU, Vello Hybrid, Skia).
+
+Note that Skia has not been implemented for Wasm benchmarking.
+
 ## Benchmark Stability
 
 Some benchmarks may produce unstable results between runs (in my case the tile benchmark sometimes was very random. However,

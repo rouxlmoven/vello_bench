@@ -13,6 +13,7 @@ fn main() {
             commands::list_benchmarks,
             commands::get_simd_levels,
             commands::run_benchmark,
+            commands::screenshot,
             commands::save_reference,
             commands::list_references,
             commands::load_reference,

@@ -14,6 +14,20 @@ serde.workspace = true
 rand.workspace = true
 smallvec.workspace = true
 usvg.workspace = true
+rustc-hash = "2"
+
+# AnyRender scene support
+anyrender.workspace = true
+anyrender_serialize.workspace = true
+anyrender_vello_cpu.workspace = true
+
+# Native-only: hybrid rendering with wgpu, Skia rendering
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+anyrender_vello_hybrid.workspace = true
+anyrender_skia.workspace = true
+vello_hybrid = { workspace = true, features = ["wgpu", "wgpu_default"] }
+wgpu = "27"
+pollster = "0.4"
 
 # WASM-specific dependencies
 [target.'cfg(target_arch = "wasm32")'.dependencies]
