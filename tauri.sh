@@ -8,4 +8,4 @@ SCRIPT_DIR="$(dirname "$0")"
 "$SCRIPT_DIR/build.sh"
 
 cd "$SCRIPT_DIR/vello_bench_tauri"
-cargo tauri dev --release --additional-watch-folders ../../vello --additional-watch-folders ../../anyrender
+cargo tauri dev --release --additional-watch-folders ../../vello
