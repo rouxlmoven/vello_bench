@@ -1,11 +1,13 @@
 pub mod benchmarks;
 pub mod data;
 pub mod registry;
+pub mod renderer;
 pub mod result;
 pub mod runner;
 pub mod scenes;
 pub mod screenshot;
 pub mod simd;
+pub mod vello_scenes;
 
 pub use fearless_simd::Level;
 pub use registry::{BenchmarkInfo, get_benchmark_list, run_benchmark_by_id};

@@ -122,6 +122,19 @@ pub fn screenshot_cpu(scene_name: &str) -> JsValue {
     obj.into()
 }
 
+/// Ensure the canvas matches the requested dimensions.
+///
+/// If a resize is needed, `set_width`/`set_height` resets the WebGL context,
+/// invalidating all compiled shaders and uploaded textures. In that case we
+/// re-create the [`WebGlRenderer`] so it picks up the fresh GL context.
+fn ensure_canvas_size(state: &mut HybridState, width: u32, height: u32) {
+    if state.canvas.width() != width || state.canvas.height() != height {
+        state.canvas.set_width(width);
+        state.canvas.set_height(height);
+        state.renderer = vello_hybrid::WebGlRenderer::new(&state.canvas);
+    }
+}
+
 /// Render a single hybrid frame: build the scene, render via WebGL, and sync.
 ///
 /// Shared by both `render_hybrid_once` (screenshot) and `run_hybrid_benchmark`
@@ -171,8 +184,7 @@ pub fn render_hybrid_once(scene_name: &str) -> bool {
             None => return false,
         };
 
-        state.canvas.set_width(width);
-        state.canvas.set_height(height);
+        ensure_canvas_size(state, width, height);
 
         let (scene, mut ctx) = deserialize_scene_webgl(item);
 
@@ -218,9 +230,7 @@ pub fn run_hybrid_benchmark(id: &str, calibration_ms: u32, measurement_ms: u32) 
             None => return JsValue::NULL,
         };
 
-        // Resize canvas to match scene dimensions
-        state.canvas.set_width(width);
-        state.canvas.set_height(height);
+        ensure_canvas_size(state, width, height);
 
         let (scene, mut ctx) = deserialize_scene_webgl(item);
 
@@ -249,4 +259,131 @@ pub fn run_hybrid_benchmark(id: &str, calibration_ms: u32, measurement_ms: u32) 
 
         serde_wasm_bindgen::to_value(&result).unwrap()
     })
+}
+
+// ---------------------------------------------------------------------------
+// WebGL HybridRenderer — implements vello_bench_core::renderer::Renderer
+// for programmatic vello scene benchmarks on WASM.
+// ---------------------------------------------------------------------------
+
+mod webgl_renderer;
+
+// ---------------------------------------------------------------------------
+// Programmatic vello scene benchmarks / screenshots — WebGL hybrid backend
+// ---------------------------------------------------------------------------
+
+use vello_bench_core::vello_scenes::{draw_scene, get_vello_scenes, setup_scene};
+
+/// Run a programmatic vello scene benchmark via the WebGL hybrid renderer.
+/// Returns the benchmark result as a JsValue, or null if not found.
+#[wasm_bindgen]
+pub fn run_vello_hybrid_benchmark(
+    id: &str,
+    calibration_ms: u32,
+    measurement_ms: u32,
+) -> JsValue {
+    let scene_name = match id.strip_prefix("vello_hybrid/") {
+        Some(name) => name,
+        None => return JsValue::NULL,
+    };
+
+    let scenes = get_vello_scenes();
+    let info = match scenes.iter().find(|s| s.name == scene_name) {
+        Some(info) => info,
+        None => return JsValue::NULL,
+    };
+
+    HYBRID_STATE.with(|state_cell| {
+        let mut state_opt = state_cell.borrow_mut();
+        let state = match state_opt.as_mut() {
+            Some(s) => s,
+            None => return JsValue::NULL,
+        };
+
+        ensure_canvas_size(state, info.width.into(), info.height.into());
+
+        let mut hybrid = webgl_renderer::WebGlHybridRenderer::from_state(
+            info.width,
+            info.height,
+            &mut state.renderer,
+        );
+
+        // Setup phase — image uploads etc. (not timed).
+        let scene_state =
+            setup_scene(scene_name, &mut hybrid).expect("vello scene not found in setup");
+
+        let runner = BenchRunner::new(calibration_ms.into(), measurement_ms.into());
+        let simd_variant = vello_bench_core::simd::level_suffix(fearless_simd::Level::new());
+
+        let result = runner.run(
+            id,
+            "vello_hybrid",
+            scene_name,
+            simd_variant,
+            #[inline(always)]
+            || {
+                draw_scene(scene_name, scene_state.as_ref(), &mut hybrid);
+                hybrid.render_and_sync();
+            },
+        );
+
+        serde_wasm_bindgen::to_value(&result).unwrap()
+    })
+}
+
+/// Render a programmatic vello scene once via the WebGL hybrid renderer.
+/// After calling this, the hybrid canvas contains the rendered output.
+/// Returns true on success.
+#[wasm_bindgen]
+pub fn render_vello_hybrid_once(scene_name: &str) -> bool {
+    let scenes = get_vello_scenes();
+    let info = match scenes.iter().find(|s| s.name == scene_name) {
+        Some(info) => info,
+        None => return false,
+    };
+
+    HYBRID_STATE.with(|state_cell| {
+        let mut state_opt = state_cell.borrow_mut();
+        let state = match state_opt.as_mut() {
+            Some(s) => s,
+            None => return false,
+        };
+
+        ensure_canvas_size(state, info.width.into(), info.height.into());
+
+        let mut hybrid = webgl_renderer::WebGlHybridRenderer::from_state(
+            info.width,
+            info.height,
+            &mut state.renderer,
+        );
+
+        let scene_state =
+            setup_scene(scene_name, &mut hybrid).expect("vello scene not found");
+        draw_scene(scene_name, scene_state.as_ref(), &mut hybrid);
+        hybrid.render_and_sync();
+
+        true
+    })
+}
+
+/// Render a programmatic vello scene via CPU and return pixel data.
+/// Returns a JS object `{ width, height, data: Uint8ClampedArray }`.
+#[wasm_bindgen]
+pub fn screenshot_vello_cpu(scene_name: &str) -> JsValue {
+    let result = match vello_bench_core::screenshot::render_vello_scene_cpu(
+        scene_name,
+        fearless_simd::Level::new(),
+    ) {
+        Some(r) => r,
+        None => return JsValue::NULL,
+    };
+
+    let obj = js_sys::Object::new();
+    js_sys::Reflect::set(&obj, &"width".into(), &result.width.into()).unwrap();
+    js_sys::Reflect::set(&obj, &"height".into(), &result.height.into()).unwrap();
+
+    let clamped = js_sys::Uint8ClampedArray::from(result.rgba.as_slice());
+    js_sys::Reflect::set(&obj, &"data".into(), &clamped).unwrap();
+
+    obj.into()
 }

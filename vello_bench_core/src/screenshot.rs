@@ -1,12 +1,15 @@
-//! Screenshot rendering for visual verification of AnyRender scenes.
+//! Screenshot rendering for visual verification of scenes.
 //!
 //! Each function delegates to the corresponding renderer struct from the
 //! benchmark modules, ensuring that screenshots use the exact same codepath
 //! as the benchmarks.
 
 use crate::benchmarks::scene_cpu::CpuSceneRenderer;
+use crate::renderer::Renderer;
 use crate::scenes::get_scenes;
+use crate::vello_scenes::{draw_scene, get_vello_scenes, setup_scene};
 use fearless_simd::Level;
+use vello_cpu::RenderMode;
 
 /// The result of rendering a scene screenshot.
 pub struct ScreenshotResult {
@@ -81,6 +84,76 @@ pub fn render_scene_skia(scene_name: &str) -> Option<ScreenshotResult> {
             width: item.width as u32,
             height: item.height as u32,
             rgba: renderer.into_rgba(),
+        })
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = scene_name;
+        None
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Programmatic vello scenes (Renderer trait based)
+// ---------------------------------------------------------------------------
+
+/// Render a programmatic vello scene using the CPU backend.
+pub fn render_vello_scene_cpu(scene_name: &str, level: Level) -> Option<ScreenshotResult> {
+    let scenes = get_vello_scenes();
+    let info = scenes.iter().find(|s| s.name == scene_name)?;
+
+    let mut ctx: vello_cpu::RenderContext =
+        Renderer::new(info.width, info.height, 0, level, RenderMode::default());
+    let mut pixmap = vello_cpu::Pixmap::new(info.width, info.height);
+
+    let state = setup_scene(scene_name, &mut ctx).expect("scene not found");
+    draw_scene(scene_name, state.as_ref(), &mut ctx);
+    ctx.flush();
+    ctx.render_to_pixmap(&mut pixmap);
+
+    let rgba = pixmap
+        .take_unpremultiplied()
+        .into_iter()
+        .flat_map(|p| [p.r, p.g, p.b, p.a])
+        .collect();
+
+    Some(ScreenshotResult {
+        width: info.width as u32,
+        height: info.height as u32,
+        rgba,
+    })
+}
+
+/// Render a programmatic vello scene using the Hybrid (wgpu) backend.
+///
+/// On WASM this returns `None` — hybrid screenshots are handled by
+/// `vello_bench_wasm` via WebGL canvas.
+pub fn render_vello_scene_hybrid(scene_name: &str) -> Option<ScreenshotResult> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use crate::renderer::HybridRenderer;
+
+        let scenes = get_vello_scenes();
+        let info = scenes.iter().find(|s| s.name == scene_name)?;
+
+        let mut hybrid: HybridRenderer =
+            Renderer::new(info.width, info.height, 0, Level::new(), RenderMode::default());
+        let mut pixmap = vello_cpu::Pixmap::new(info.width, info.height);
+
+        let state = setup_scene(scene_name, &mut hybrid).expect("scene not found");
+        draw_scene(scene_name, state.as_ref(), &mut hybrid);
+        hybrid.render_to_pixmap(&mut pixmap);
+
+        let rgba = pixmap
+            .take_unpremultiplied()
+            .into_iter()
+            .flat_map(|p| [p.r, p.g, p.b, p.a])
+            .collect();
+
+        Some(ScreenshotResult {
+            width: info.width as u32,
+            height: info.height as u32,
+            rgba,
         })
     }
     #[cfg(target_arch = "wasm32")]

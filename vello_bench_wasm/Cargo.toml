@@ -22,6 +22,7 @@ anyrender.workspace = true
 anyrender_vello_hybrid = { workspace = true, features = ["webgl"] }
 vello_hybrid = { workspace = true, features = ["webgl"] }
 vello_common.workspace = true
+vello_cpu.workspace = true
 rustc-hash = "2"
 web-sys = { workspace = true, features = [
     "HtmlCanvasElement",

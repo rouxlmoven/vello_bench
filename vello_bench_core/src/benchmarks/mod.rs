@@ -6,3 +6,5 @@ pub mod scene_hybrid;
 pub mod scene_skia;
 pub mod strokes;
 pub mod tile;
+pub mod vello_cpu;
+pub mod vello_hybrid;

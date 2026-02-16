@@ -174,6 +174,13 @@ pub async fn screenshot(scene_name: String, category: String) -> Option<Screensh
             ),
             "scene_hybrid" => vello_bench_core::screenshot::render_scene_hybrid(&scene_name),
             "scene_skia" => vello_bench_core::screenshot::render_scene_skia(&scene_name),
+            "vello_cpu" => vello_bench_core::screenshot::render_vello_scene_cpu(
+                &scene_name,
+                vello_bench_core::Level::new(),
+            ),
+            "vello_hybrid" => {
+                vello_bench_core::screenshot::render_vello_scene_hybrid(&scene_name)
+            }
             _ => None,
         }?;
         let rgba_base64 = base64::engine::general_purpose::STANDARD.encode(&result.rgba);

@@ -32,7 +32,7 @@ const state = {
 
 // Returns true if the given category belongs to the "scene" tab.
 function isSceneCategory(category) {
-    return category.startsWith('scene_');
+    return category.startsWith('scene_') || category === 'vello_cpu' || category === 'vello_hybrid';
 }
 
 function detectTauri() {
@@ -128,10 +128,13 @@ async function loadMainThreadWasm() {
 function initHybridRenderer() {
     if (state.hybridInitialized || !state.mainThreadWasm) return false;
     try {
-        // Create a hidden canvas for WebGL rendering
+        // Create a hidden canvas for WebGL rendering.
+        // Use the maximum scene dimensions (1920x1080) to avoid ever needing
+        // to resize. Canvas resizes trigger an async WebGL context loss/restore
+        // cycle that makes the context unusable for synchronous rendering.
         const canvas = document.createElement('canvas');
-        canvas.width = 1024;
-        canvas.height = 768;
+        canvas.width = 1920;
+        canvas.height = 1080;
         canvas.style.display = 'none';
         canvas.id = 'hybrid-bench-canvas';
         document.body.appendChild(canvas);
@@ -146,9 +149,9 @@ function initHybridRenderer() {
     }
 }
 
-// Check if a benchmark ID is a hybrid scene benchmark
+// Check if a benchmark ID is a hybrid scene benchmark (needs WebGL on main thread)
 function isHybridBenchmark(id) {
-    return id.startsWith('scene_hybrid/');
+    return id.startsWith('scene_hybrid/') || id.startsWith('vello_hybrid/');
 }
 
 async function switchWasmSimdLevel(level) {
@@ -480,6 +483,11 @@ async function runSingleBenchmark(id) {
     if (isHybridBenchmark(id) && state.hybridInitialized && state.mainThreadWasm) {
         // Yield to let the UI update before blocking the main thread
         await new Promise(resolve => setTimeout(resolve, 0));
+        // Programmatic vello scenes use a different entry point
+        if (id.startsWith('vello_hybrid/')) {
+            const result = state.mainThreadWasm.run_vello_hybrid_benchmark(id, calibrationMs, measurementMs);
+            return result;
+        }
         const result = state.mainThreadWasm.run_hybrid_benchmark(id, calibrationMs, measurementMs);
         return result;
     }
@@ -810,6 +818,12 @@ async function captureScreenshot(benchId) {
     } else if (benchId.startsWith('scene_skia/')) {
         sceneName = benchId.slice('scene_skia/'.length);
         category = 'scene_skia';
+    } else if (benchId.startsWith('vello_cpu/')) {
+        sceneName = benchId.slice('vello_cpu/'.length);
+        category = 'vello_cpu';
+    } else if (benchId.startsWith('vello_hybrid/')) {
+        sceneName = benchId.slice('vello_hybrid/'.length);
+        category = 'vello_hybrid';
     } else {
         return;
     }
@@ -836,10 +850,20 @@ async function captureScreenshot(benchId) {
             const success = state.mainThreadWasm.render_hybrid_once(sceneName);
             if (!success) throw new Error('Hybrid render failed');
             dataUrl = state.hybridCanvas.toDataURL('image/png');
+        } else if (category === 'vello_hybrid' && state.hybridInitialized && state.mainThreadWasm) {
+            // Vello Hybrid WebGL: render once to canvas, then grab its content
+            const success = state.mainThreadWasm.render_vello_hybrid_once(sceneName);
+            if (!success) throw new Error('Vello Hybrid render failed');
+            dataUrl = state.hybridCanvas.toDataURL('image/png');
         } else if (category === 'scene_cpu' && state.mainThreadWasm) {
             // CPU: render via WASM and get raw pixel data
             const result = state.mainThreadWasm.screenshot_cpu(sceneName);
             if (!result) throw new Error('CPU screenshot failed');
+            dataUrl = rgbaToDataUrl(result.data, result.width, result.height);
+        } else if (category === 'vello_cpu' && state.mainThreadWasm) {
+            // Vello CPU: render via WASM and get raw pixel data
+            const result = state.mainThreadWasm.screenshot_vello_cpu(sceneName);
+            if (!result) throw new Error('Vello CPU screenshot failed');
             dataUrl = rgbaToDataUrl(result.data, result.width, result.height);
         } else if (category === 'scene_skia') {
             throw new Error('Skia screenshots are only available in native mode');

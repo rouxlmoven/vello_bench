@@ -54,6 +54,8 @@ pub fn get_benchmark_list() -> Vec<BenchmarkInfo> {
     benchmarks.extend(scene_cpu::list());
     benchmarks.extend(scene_hybrid::list());
     benchmarks.extend(scene_skia::list());
+    benchmarks.extend(vello_cpu::list());
+    benchmarks.extend(vello_hybrid::list());
 
     benchmarks
 }
@@ -98,6 +100,12 @@ pub fn run_benchmark_by_id(
     }
     if let Some(name) = id.strip_prefix("scene_skia/") {
         return scene_skia::run(name, runner, level);
+    }
+    if let Some(name) = id.strip_prefix("vello_cpu/") {
+        return vello_cpu::run(name, runner, level);
+    }
+    if let Some(name) = id.strip_prefix("vello_hybrid/") {
+        return vello_hybrid::run(name, runner, level);
     }
 
     None
