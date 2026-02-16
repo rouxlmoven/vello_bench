@@ -15,6 +15,7 @@ rand.workspace = true
 smallvec.workspace = true
 usvg.workspace = true
 rustc-hash = "2"
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
 
 # AnyRender scene support
 anyrender.workspace = true
