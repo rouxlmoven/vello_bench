@@ -30,48 +30,24 @@ impl BenchRunner {
         }
     }
 
-    /// Run the measurement phase and return statistics.
+    /// Bulk-timing measurement: times the entire loop as a single span.
     ///
-    /// When `bench_id` is non-empty and the timer supports it, per-iteration
-    /// `performance.mark()` / `performance.measure()` entries are emitted so
-    /// that individual iterations are visible in the browser Performance panel.
+    /// No per-iteration `performance.mark()` calls are emitted — use
+    /// [`Self::measure_per_iteration_with_frame_wait`] when DevTools per-iteration marks are
+    /// needed (e.g. GPU benchmarks).
     fn measure<F, T: Timer>(
         timer: &T,
-        bench_id: &str,
         mut f: F,
         total_iters: usize,
     ) -> Statistics
     where
         F: FnMut(),
     {
-        let emit_marks = total_iters <= MAX_MARKED_ITERS;
-
         let start = timer.now();
-        if emit_marks {
-            for i in 0..total_iters {
-                timer.mark(&format!("bench:{bench_id}:iter:{i}"));
-                f();
-            }
-            timer.mark(&format!("bench:{bench_id}:iter:{total_iters}"));
-        } else {
-            for _ in 0..total_iters {
-                f();
-            }
+        for _ in 0..total_iters {
+            f();
         }
         let elapsed_ns = timer.elapsed_ns(start);
-
-        // Create measure spans *after* the timed section so they don't
-        // inflate the measurement. DevTools will still place them at the
-        // correct timestamps because we recorded marks inside the loop.
-        if emit_marks {
-            for i in 0..total_iters {
-                timer.measure_span(
-                    &format!("{bench_id} iter {i}"),
-                    &format!("bench:{bench_id}:iter:{i}"),
-                    &format!("bench:{bench_id}:iter:{}", i + 1),
-                );
-            }
-        }
 
         Statistics::from_measurement(elapsed_ns, total_iters)
     }
@@ -88,7 +64,7 @@ impl BenchRunner {
     /// skewing results. On native the frame wait is a no-op, so the only
     /// difference from [`Self::measure`] is the per-iteration timing overhead
     /// (negligible for GPU-bound work).
-    fn measure_per_iteration<F, T: Timer>(
+    fn measure_per_iteration_with_frame_wait<F, T: Timer>(
         timer: &T,
         bench_id: &str,
         mut f: F,
@@ -166,9 +142,9 @@ impl BenchRunner {
 
         timer.mark(&format!("bench:{id}:measure:start"));
         let statistics = if per_iteration {
-            Self::measure_per_iteration(timer, id, f, total_iters)
+            Self::measure_per_iteration_with_frame_wait(timer, id, f, total_iters)
         } else {
-            Self::measure(timer, id, f, total_iters)
+            Self::measure(timer, f, total_iters)
         };
         timer.mark(&format!("bench:{id}:measure:end"));
         timer.measure_span(
