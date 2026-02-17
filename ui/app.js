@@ -1,7 +1,7 @@
 // Vello Benchmark Suite - Web UI
 
-const DEFAULT_CALIBRATION_MS = 100;
-const DEFAULT_MEASUREMENT_MS = 250;
+const DEFAULT_WARMUP = 10;
+const DEFAULT_ITERATIONS = 100;
 
 const state = {
     benchmarks: [],
@@ -22,8 +22,10 @@ const state = {
     executionMode: 'native',
     pendingWasmResolve: null,
     references: [],
-    loadedReference: null,
-    referenceResults: new Map(),
+    baseSelection: 'current',    // 'current' or reference name
+    compareSelection: '',        // '' (none), 'current', or reference name
+    baseResults: new Map(),      // loaded reference results when base is a reference
+    compareResults: new Map(),   // loaded reference results when compare is a reference
     // Main-thread WASM module for hybrid WebGL benchmarks
     mainThreadWasm: null,
     hybridCanvas: null,
@@ -37,6 +39,56 @@ function isSceneCategory(category) {
 
 function detectTauri() {
     return window.__TAURI__ !== undefined;
+}
+
+// ---------------------------------------------------------------------------
+// LocalStorage-based reference storage (used when Tauri is not available)
+// ---------------------------------------------------------------------------
+
+const LS_REF_INDEX_KEY = 'vello-bench-references';
+const LS_REF_PREFIX = 'vello-bench-ref:';
+
+function lsListReferences() {
+    try {
+        const raw = localStorage.getItem(LS_REF_INDEX_KEY);
+        if (!raw) return [];
+        const index = JSON.parse(raw);
+        // Sort newest first
+        index.sort((a, b) => b.created_at - a.created_at);
+        return index;
+    } catch {
+        return [];
+    }
+}
+
+function lsSaveReference(name, results) {
+    const safeName = name.replace(/[^a-zA-Z0-9_-]/g, '_');
+    if (!safeName) throw new Error('Name cannot be empty');
+
+    // Save the results array
+    localStorage.setItem(LS_REF_PREFIX + safeName, JSON.stringify(results));
+
+    // Update the index
+    const index = lsListReferences().filter(r => r.name !== safeName);
+    index.unshift({
+        name: safeName,
+        created_at: Date.now(),
+        benchmark_count: results.length,
+    });
+    localStorage.setItem(LS_REF_INDEX_KEY, JSON.stringify(index));
+}
+
+function lsLoadReference(name) {
+    const raw = localStorage.getItem(LS_REF_PREFIX + name);
+    if (!raw) throw new Error(`Reference "${name}" not found`);
+    return JSON.parse(raw);
+}
+
+function lsDeleteReference(name) {
+    localStorage.removeItem(LS_REF_PREFIX + name);
+
+    const index = lsListReferences().filter(r => r.name !== name);
+    localStorage.setItem(LS_REF_INDEX_KEY, JSON.stringify(index));
 }
 
 async function invoke(cmd, args = {}) {
@@ -169,8 +221,8 @@ async function switchWasmSimdLevel(level) {
 async function init() {
     state.isTauri = detectTauri();
 
-    document.getElementById('calibration-ms').value = DEFAULT_CALIBRATION_MS;
-    document.getElementById('measurement-ms').value = DEFAULT_MEASUREMENT_MS;
+    document.getElementById('warmup').value = DEFAULT_WARMUP;
+    document.getElementById('iterations').value = DEFAULT_ITERATIONS;
 
     const execMode = document.getElementById('exec-mode');
     if (state.isTauri) {
@@ -208,6 +260,7 @@ async function init() {
     setupEventListeners();
     setupScreenshotDialogListeners();
     updateSkiaBadge();
+    updateColumnHeaders();
 }
 
 async function loadSimdLevels() {
@@ -368,39 +421,43 @@ function renderBenchmarks() {
         return;
     }
 
+    const baseMap = getResultsForSelection(state.baseSelection, state.baseResults);
+    const compareMap = getResultsForSelection(state.compareSelection, state.compareResults);
+
     tbody.innerHTML = filtered.map(bench => {
-        const result = state.results.get(bench.id);
-        const refResult = state.referenceResults.get(bench.id);
+        const currentResult = state.results.get(bench.id);
+        const baseResult = baseMap.get(bench.id);
+        const compareResult = compareMap.get(bench.id);
         const isSelected = state.selectedBenchmarks.includes(bench.id);
 
         let status = 'idle';
         let statusText = 'idle';
         if (state.runningBenchmark === bench.id) {
-            status = state.runningPhase === 'calibrating' ? 'calibrating' : 'running';
+            status = state.runningPhase === 'warming up' ? 'calibrating' : 'running';
             statusText = state.runningPhase;
         } else if (state.queuedBenchmarks.has(bench.id)) {
             status = 'queued';
             statusText = 'queued';
-        } else if (result) {
+        } else if (currentResult) {
             status = 'completed';
             statusText = 'done';
         }
 
-        const meanStr = result
-            ? (() => { const { mean, unit } = formatTime(result.statistics.mean_ns); return `${mean.toFixed(3)} ${unit}`; })()
+        const baseStr = baseResult
+            ? (() => { const { mean, unit } = formatTime(baseResult.statistics.mean_ns); return `${mean.toFixed(3)} ${unit}`; })()
             : '-';
 
-        let refStr = '-';
+        let compareStr = '-';
         let changeStr = '-';
         let changeClass = '';
 
-        if (refResult) {
-            const { mean, unit } = formatTime(refResult.statistics.mean_ns);
-            refStr = `${mean.toFixed(3)} ${unit}`;
+        if (compareResult) {
+            const { mean, unit } = formatTime(compareResult.statistics.mean_ns);
+            compareStr = `${mean.toFixed(3)} ${unit}`;
         }
 
-        if (result && refResult) {
-            const comparison = calculateComparison(result.statistics.mean_ns, refResult.statistics.mean_ns);
+        if (baseResult && compareResult) {
+            const comparison = calculateComparison(compareResult.statistics.mean_ns, baseResult.statistics.mean_ns);
             if (comparison) {
                 const sign = comparison.percentChange > 0 ? '+' : '';
                 changeStr = `${sign}${comparison.percentChange.toFixed(1)}%`;
@@ -430,8 +487,8 @@ function renderBenchmarks() {
                 <td class="col-name">${bench.name}</td>
                 <td class="col-category">${bench.category}</td>
                 <td class="col-status"><span class="status-badge ${status}">${statusText}</span></td>
-                <td class="col-mean"><span class="result-mean">${meanStr}</span></td>
-                <td class="col-ref"><span class="result-ref">${refStr}</span></td>
+                <td class="col-mean"><span class="result-mean">${baseStr}</span></td>
+                <td class="col-ref"><span class="result-ref">${compareStr}</span></td>
                 <td class="col-change"><span class="result-change ${changeClass}">${changeStr}</span></td>
                 <td class="col-actions">${isScene
                     ? `<button class="screenshot-btn" data-screenshot="${bench.id}" title="Capture screenshot">&#128247;</button>`
@@ -466,17 +523,17 @@ function updateStats() {
 }
 
 function getTimingConfig() {
-    const calibrationMs = Math.max(100, parseInt(document.getElementById('calibration-ms').value) || DEFAULT_CALIBRATION_MS);
-    const measurementMs = Math.max(100, parseInt(document.getElementById('measurement-ms').value) || DEFAULT_MEASUREMENT_MS);
-    return { calibrationMs, measurementMs };
+    const warmup = Math.max(0, parseInt(document.getElementById('warmup').value) ?? DEFAULT_WARMUP);
+    const iterations = Math.max(1, parseInt(document.getElementById('iterations').value) || DEFAULT_ITERATIONS);
+    return { warmup, iterations };
 }
 
 async function runSingleBenchmark(id) {
     const simdLevel = document.getElementById('simd-level').value;
-    const { calibrationMs, measurementMs } = getTimingConfig();
+    const { warmup, iterations } = getTimingConfig();
 
     if (state.executionMode === 'native' && state.isTauri) {
-        return await invoke('run_benchmark', { id, simdLevel, calibrationMs, measurementMs });
+        return await invoke('run_benchmark', { id, simdLevel, warmup, iterations });
     }
 
     // Hybrid WebGL benchmarks run on the main thread (needs canvas/WebGL context)
@@ -485,10 +542,10 @@ async function runSingleBenchmark(id) {
         await new Promise(resolve => setTimeout(resolve, 0));
         // Programmatic vello scenes use a different entry point
         if (id.startsWith('vello_hybrid/')) {
-            const result = state.mainThreadWasm.run_vello_hybrid_benchmark(id, calibrationMs, measurementMs);
+            const result = state.mainThreadWasm.run_vello_hybrid_benchmark(id, warmup, iterations);
             return result;
         }
-        const result = state.mainThreadWasm.run_hybrid_benchmark(id, calibrationMs, measurementMs);
+        const result = state.mainThreadWasm.run_hybrid_benchmark(id, warmup, iterations);
         return result;
     }
 
@@ -496,7 +553,7 @@ async function runSingleBenchmark(id) {
     if (state.wasmWorker) {
         return new Promise((resolve) => {
             state.pendingWasmResolve = resolve;
-            state.wasmWorker.postMessage({ type: 'run', id, calibrationMs, measurementMs });
+            state.wasmWorker.postMessage({ type: 'run', id, warmup, iterations });
         });
     }
     return null;
@@ -527,15 +584,17 @@ async function runBenchmarks(ids) {
 
         state.queuedBenchmarks.delete(id);
         state.runningBenchmark = id;
-        state.runningPhase = 'calibrating';
+        state.runningPhase = 'warming up';
         renderBenchmarks();
 
+        // Transition the UI label to "measuring" after one tick — the
+        // warm-up is iteration-counted and typically finishes quickly.
         const phaseTimer = setTimeout(() => {
-            if (state.runningBenchmark === id && state.runningPhase === 'calibrating') {
+            if (state.runningBenchmark === id && state.runningPhase === 'warming up') {
                 state.runningPhase = 'measuring';
                 renderBenchmarks();
             }
-        }, getTimingConfig().calibrationMs);
+        }, 0);
 
         await new Promise(resolve => setTimeout(resolve, 0));
 
@@ -591,35 +650,51 @@ function exportResults() {
 }
 
 async function loadReferencesList() {
-    if (!state.isTauri) return;
-
     try {
-        state.references = await invoke('list_references');
-        renderReferencesDropdown();
+        if (state.isTauri) {
+            state.references = await invoke('list_references');
+        } else {
+            state.references = lsListReferences();
+        }
+        renderComparisonDropdowns();
     } catch (e) {
         console.error('Failed to load references list:', e);
     }
 }
 
-function renderReferencesDropdown() {
-    const select = document.getElementById('reference-select');
-    if (!select) return;
+function renderComparisonDropdowns() {
+    const baseSelect = document.getElementById('base-select');
+    const compareSelect = document.getElementById('compare-select');
+    if (!baseSelect || !compareSelect) return;
 
-    const currentValue = select.value;
-    select.innerHTML = '<option value="">No reference</option>';
+    const refOptions = state.references.map(
+        entry => `<option value="${entry.name}">${entry.name}</option>`
+    ).join('');
 
-    for (const entry of state.references) {
-        select.innerHTML += `<option value="${entry.name}">${entry.name}</option>`;
+    // Base: "Current Results" + saved references
+    baseSelect.innerHTML =
+        '<option value="current">Current Results</option>' + refOptions;
+    if (state.baseSelection && (state.baseSelection === 'current' || state.references.some(r => r.name === state.baseSelection))) {
+        baseSelect.value = state.baseSelection;
     }
 
-    if (currentValue && state.references.some(r => r.name === currentValue)) {
-        select.value = currentValue;
+    // Compare: "None" + "Current Results" + saved references
+    compareSelect.innerHTML =
+        '<option value="">None</option><option value="current">Current Results</option>' + refOptions;
+    if (state.compareSelection && (state.compareSelection === 'current' || state.references.some(r => r.name === state.compareSelection))) {
+        compareSelect.value = state.compareSelection;
     }
 
+    updateDeleteButton();
+}
+
+function updateDeleteButton() {
     const deleteBtn = document.getElementById('delete-reference-btn');
-    if (deleteBtn) {
-        deleteBtn.disabled = !select.value;
-    }
+    if (!deleteBtn) return;
+    // Enable delete if either selection is a saved reference (not 'current' or '')
+    const baseIsRef = state.baseSelection && state.baseSelection !== 'current';
+    const compareIsRef = state.compareSelection && state.compareSelection !== 'current';
+    deleteBtn.disabled = !(baseIsRef || compareIsRef);
 }
 
 function showSaveDialog() {
@@ -654,10 +729,6 @@ function showSaveDialog() {
 }
 
 async function saveReference() {
-    if (!state.isTauri) {
-        alert('Saving references is only available in the Tauri app.');
-        return;
-    }
     if (state.results.size === 0) {
         alert('No benchmark results to save.');
         return;
@@ -668,7 +739,11 @@ async function saveReference() {
 
     try {
         const results = Array.from(state.results.values());
-        await invoke('save_reference', { name, results });
+        if (state.isTauri) {
+            await invoke('save_reference', { name, results });
+        } else {
+            lsSaveReference(name, results);
+        }
         await loadReferencesList();
     } catch (e) {
         console.error('Failed to save reference:', e);
@@ -676,27 +751,68 @@ async function saveReference() {
     }
 }
 
-async function loadReference(name) {
-    if (!name) {
-        state.loadedReference = null;
-        state.referenceResults.clear();
-        renderBenchmarks();
-        updateReferenceUI();
-        return;
-    }
+// Load reference data into the given target map. Returns true on success.
+async function loadReferenceData(name, targetMap) {
+    targetMap.clear();
+    if (!name || name === 'current') return true;
 
     try {
-        const results = await invoke('load_reference', { name });
-        state.loadedReference = name;
-        state.referenceResults.clear();
-        for (const result of results) {
-            state.referenceResults.set(result.id, result);
+        let results;
+        if (state.isTauri) {
+            results = await invoke('load_reference', { name });
+        } else {
+            results = lsLoadReference(name);
         }
-        renderBenchmarks();
-        updateReferenceUI();
+        for (const result of results) {
+            targetMap.set(result.id, result);
+        }
+        return true;
     } catch (e) {
-        console.error('Failed to load reference:', e);
+        console.error(`Failed to load reference "${name}":`, e);
         alert(`Failed to load reference: ${e}`);
+        return false;
+    }
+}
+
+async function onBaseSelectionChange(value) {
+    state.baseSelection = value;
+    await loadReferenceData(value, state.baseResults);
+    updateDeleteButton();
+    updateColumnHeaders();
+    renderBenchmarks();
+}
+
+async function onCompareSelectionChange(value) {
+    state.compareSelection = value;
+    await loadReferenceData(value, state.compareResults);
+    updateDeleteButton();
+    updateColumnHeaders();
+    renderBenchmarks();
+}
+
+// Get the result map for a given selection ('current', '' or a reference name)
+function getResultsForSelection(selection, loadedMap) {
+    if (selection === 'current') return state.results;
+    if (!selection) return new Map();
+    return loadedMap;
+}
+
+function updateColumnHeaders() {
+    const baseHeader = document.getElementById('col-base-header');
+    const compareHeader = document.getElementById('col-compare-header');
+    if (baseHeader) {
+        baseHeader.textContent = state.baseSelection === 'current'
+            ? 'Base (current)'
+            : `Base (${state.baseSelection || '—'})`;
+    }
+    if (compareHeader) {
+        if (!state.compareSelection) {
+            compareHeader.textContent = 'Compare';
+        } else {
+            compareHeader.textContent = state.compareSelection === 'current'
+                ? 'Compare (current)'
+                : `Compare (${state.compareSelection})`;
+        }
     }
 }
 
@@ -727,52 +843,61 @@ function showConfirmDialog(title, message) {
 }
 
 async function deleteReference() {
-    const select = document.getElementById('reference-select');
-    const name = select?.value;
-    if (!name) return;
+    // Collect saved references currently selected
+    const candidates = [];
+    if (state.baseSelection && state.baseSelection !== 'current') {
+        candidates.push({ name: state.baseSelection, role: 'base' });
+    }
+    if (state.compareSelection && state.compareSelection !== 'current' &&
+        state.compareSelection !== state.baseSelection) {
+        candidates.push({ name: state.compareSelection, role: 'compare' });
+    }
+    if (candidates.length === 0) return;
+
+    // If both slots hold different references, let the user pick via a
+    // simple confirm dialog (confirm = delete the first candidate).
+    let name;
+    if (candidates.length === 1) {
+        name = candidates[0].name;
+    } else {
+        const pick = await showConfirmDialog(
+            'Delete Reference',
+            `Delete "${candidates[0].name}" (${candidates[0].role})? Cancel to keep it.`
+        );
+        if (!pick) return;
+        name = candidates[0].name;
+    }
 
     const confirmed = await showConfirmDialog('Delete Reference', `Are you sure you want to delete "${name}"?`);
     if (!confirmed) return;
 
     try {
-        await invoke('delete_reference', { name });
+        if (state.isTauri) {
+            await invoke('delete_reference', { name });
+        } else {
+            lsDeleteReference(name);
+        }
 
-        if (state.loadedReference === name) {
-            state.loadedReference = null;
-            state.referenceResults.clear();
-            select.value = '';
-            renderBenchmarks();
-            updateReferenceUI();
+        if (state.baseSelection === name) {
+            state.baseSelection = 'current';
+            state.baseResults.clear();
+        }
+        if (state.compareSelection === name) {
+            state.compareSelection = '';
+            state.compareResults.clear();
         }
 
         await loadReferencesList();
+        updateColumnHeaders();
+        renderBenchmarks();
     } catch (e) {
         console.error('Failed to delete reference:', e);
     }
 }
 
-function updateReferenceUI() {
-    const deleteBtn = document.getElementById('delete-reference-btn');
-    const select = document.getElementById('reference-select');
-    const currentName = document.getElementById('reference-current-name');
-
-    if (deleteBtn && select) {
-        deleteBtn.disabled = !select.value;
-    }
-
-    if (currentName) {
-        if (state.loadedReference) {
-            const entry = state.references.find(r => r.name === state.loadedReference);
-            if (entry) {
-                const date = new Date(entry.created_at).toLocaleDateString();
-                currentName.innerHTML = `<strong>${entry.name}</strong><br><span class="reference-meta">${date}</span>`;
-            } else {
-                currentName.textContent = state.loadedReference;
-            }
-        } else {
-            currentName.textContent = 'None';
-        }
-    }
+function updateComparisonUI() {
+    updateDeleteButton();
+    updateColumnHeaders();
 }
 
 function calculateComparison(currentNs, referenceNs) {
@@ -1055,9 +1180,14 @@ function setupEventListeners() {
         saveRefBtn.addEventListener('click', saveReference);
     }
 
-    const refSelect = document.getElementById('reference-select');
-    if (refSelect) {
-        refSelect.addEventListener('change', (e) => loadReference(e.target.value));
+    const baseSelect = document.getElementById('base-select');
+    if (baseSelect) {
+        baseSelect.addEventListener('change', (e) => onBaseSelectionChange(e.target.value));
+    }
+
+    const compareSelect = document.getElementById('compare-select');
+    if (compareSelect) {
+        compareSelect.addEventListener('change', (e) => onCompareSelectionChange(e.target.value));
     }
 
     const deleteRefBtn = document.getElementById('delete-reference-btn');

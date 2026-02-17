@@ -599,6 +599,6 @@ impl VelloScene for PathsAndImages100 {
     }
 
     fn draw<R: Renderer>(state: &Self::State, r: &mut R) {
-        draw_paths_and_images(state, r, 100, 100);
+        draw_paths_and_images(state, r, 10, 100);
     }
 }
