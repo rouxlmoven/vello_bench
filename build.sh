@@ -1,19 +1,21 @@
 #!/bin/bash
-# Build WASM packages for vello benchmarks (both scalar and SIMD versions)
+# Build WASM packages for vello benchmarks (both scalar and SIMD versions).
+#
+# Uses cargo build + wasm-bindgen directly (instead of wasm-pack) so we can
+# build in release mode while preserving debug symbols for Chrome DevTools
+# profiling.
 
 set -e
 
-cd "$(dirname "$0")"
+source "$(dirname "$0")/common.sh"
+cd "$REPO_ROOT"
 
-echo "Building WASM (scalar)..."
-cd vello_bench_wasm
-wasm-pack build --target web --out-dir ../ui/pkg
-
-echo ""
-echo "Building WASM (SIMD128)..."
-RUSTFLAGS='-C target-feature=+simd128' wasm-pack build --target web --out-dir ../ui/pkg-simd
+# --- Scalar build ---
+build_scalar
 
 echo ""
-echo "WASM builds complete!"
-echo "  Scalar: ui/pkg/"
-echo "  SIMD:   ui/pkg-simd/"
+
+# --- SIMD128 build ---
+build_simd
+
+print_build_summary "both"
