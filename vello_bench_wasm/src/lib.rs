@@ -41,10 +41,10 @@ pub fn has_simd128() -> bool {
 
 /// Run a single benchmark by ID.
 #[wasm_bindgen]
-pub fn run_benchmark(id: &str, calibration_ms: u32, measurement_ms: u32) -> JsValue {
+pub fn run_benchmark(id: &str, warmup: u32, iterations: u32) -> JsValue {
     use fearless_simd::Level;
 
-    let runner = BenchRunner::new(calibration_ms.into(), measurement_ms.into());
+    let runner = BenchRunner::new(warmup.into(), iterations.into());
     let level = Level::new();
 
     match vello_bench_core::run_benchmark_by_id(&runner, id, level) {
@@ -207,7 +207,7 @@ pub fn render_hybrid_once(scene_name: &str) -> bool {
 /// Returns the benchmark result as a JsValue, or null if the benchmark
 /// was not found or hybrid is not initialized.
 #[wasm_bindgen]
-pub fn run_hybrid_benchmark(id: &str, calibration_ms: u32, measurement_ms: u32) -> JsValue {
+pub fn run_hybrid_benchmark(id: &str, warmup: u32, iterations: u32) -> JsValue {
     // Only handle scene_hybrid/ benchmarks
     let scene_name = match id.strip_prefix("scene_hybrid/") {
         Some(name) => name,
@@ -237,10 +237,10 @@ pub fn run_hybrid_benchmark(id: &str, calibration_ms: u32, measurement_ms: u32) 
         let render_size = vello_hybrid::RenderSize { width, height };
         let mut hybrid_scene = vello_hybrid::Scene::new(item.width, item.height);
 
-        let runner = BenchRunner::new(calibration_ms.into(), measurement_ms.into());
+        let runner = BenchRunner::new(warmup.into(), iterations.into());
         let simd_variant = vello_bench_core::simd::level_suffix(fearless_simd::Level::new());
 
-        let result = runner.run(
+        let result = runner.run_with_frame_wait(
             id,
             "scene_hybrid",
             scene_name,
@@ -279,8 +279,8 @@ use vello_bench_core::vello_scenes::{draw_scene, get_vello_scenes, setup_scene};
 #[wasm_bindgen]
 pub fn run_vello_hybrid_benchmark(
     id: &str,
-    calibration_ms: u32,
-    measurement_ms: u32,
+    warmup: u32,
+    iterations: u32,
 ) -> JsValue {
     let scene_name = match id.strip_prefix("vello_hybrid/") {
         Some(name) => name,
@@ -312,10 +312,10 @@ pub fn run_vello_hybrid_benchmark(
         let scene_state =
             setup_scene(scene_name, &mut hybrid).expect("vello scene not found in setup");
 
-        let runner = BenchRunner::new(calibration_ms.into(), measurement_ms.into());
+        let runner = BenchRunner::new(warmup.into(), iterations.into());
         let simd_variant = vello_bench_core::simd::level_suffix(fearless_simd::Level::new());
 
-        let result = runner.run(
+        let result = runner.run_with_frame_wait(
             id,
             "vello_hybrid",
             scene_name,

@@ -255,7 +255,7 @@ input[type="number"] {
 }
 
 
-/* Reference Panel */
+/* Reference / Comparison Panel */
 .reference-panel {
     padding-top: 0.5rem;
     border-top: 1px solid var(--border);
@@ -264,35 +264,30 @@ input[type="number"] {
 .reference-panel h3 {
     font-size: 0.75rem;
     color: var(--text-secondary);
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.4rem;
 }
 
-.reference-current {
-    font-size: 0.75rem;
-    margin-bottom: 0.5rem;
+.comparison-group {
+    margin-bottom: 0.35rem;
 }
 
-#reference-current-name {
-    color: var(--text-primary);
-}
-
-#reference-current-name strong {
-    color: var(--accent-primary);
-}
-
-.reference-meta {
+.comparison-group label {
+    display: block;
     font-size: 0.65rem;
     color: var(--text-secondary);
+    margin-bottom: 0.1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 .reference-select {
     width: 100%;
-    margin-bottom: 0.5rem;
 }
 
 .reference-actions {
     display: flex;
     gap: 0.25rem;
+    margin-top: 0.5rem;
 }
 
 .btn-small {

@@ -1,42 +1,45 @@
 use crate::result::{BenchmarkResult, Statistics};
 
+/// Per-iteration performance marks are only emitted when the total iteration
+/// count stays at or below this threshold. This avoids flooding the browser
+/// Performance timeline (and adding measurable overhead) for very fast CPU
+/// micro-benchmarks that run millions of iterations.  GPU/WebGL benchmarks
+/// typically have far fewer iterations and always receive marks.
+const MAX_MARKED_ITERS: usize = 10_000;
+
 #[derive(Debug, Clone)]
 pub struct BenchRunner {
-    pub calibration_ms: u64,
-    pub measurement_ms: u64,
+    pub warmup: u64,
+    pub iterations: u64,
 }
 
 impl BenchRunner {
-    pub fn new(calibration_ms: u64, measurement_ms: u64) -> Self {
-        Self { calibration_ms, measurement_ms }
+    pub fn new(warmup: u64, iterations: u64) -> Self {
+        Self { warmup, iterations }
     }
 }
 
 impl BenchRunner {
-    fn calibrate<F, T: Timer>(&self, timer: &T, mut f: F) -> (usize, f64)
+    /// Runs `self.warmup` iterations of `f.
+    fn warmup<F>(&self, mut f: F)
     where
         F: FnMut(),
     {
-        let target_ns = self.calibration_ms as f64 * 1_000_000.0;
-        let mut batch_size = 1usize;
-
-        loop {
-            let start = timer.now();
-            for _ in 0..batch_size {
-                f();
-            }
-            let elapsed_ns = timer.elapsed_ns(start);
-
-            if elapsed_ns >= target_ns {
-                return (batch_size, elapsed_ns);
-            }
-
-            batch_size *= 2;
+        for _ in 0..self.warmup {
+            f();
         }
     }
 
-    /// Run the measurement phase and return statistics.
-    fn measure<F, T: Timer>(timer: &T, mut f: F, total_iters: usize) -> Statistics
+    /// Bulk-timing measurement: times the entire loop as a single span.
+    ///
+    /// No per-iteration `performance.mark()` calls are emitted — use
+    /// [`Self::measure_per_iteration_with_frame_wait`] when DevTools per-iteration marks are
+    /// needed (e.g. GPU benchmarks).
+    fn measure<F, T: Timer>(
+        timer: &T,
+        mut f: F,
+        total_iters: usize,
+    ) -> Statistics
     where
         F: FnMut(),
     {
@@ -49,7 +52,63 @@ impl BenchRunner {
         Statistics::from_measurement(elapsed_ns, total_iters)
     }
 
-    /// Run a benchmark using the provided timer, with optional callback after calibration.
+    /// Run the measurement phase with **per-iteration timing** and an untimed
+    /// frame wait between iterations.
+    ///
+    /// Each call to `f()` is timed individually and the elapsed durations are
+    /// accumulated. Between iterations the timer's [`Timer::wait_one_frame`] is
+    /// called — that pause is **not** included in the measurement.
+    ///
+    /// This variant is designed for GPU / WebGL benchmarks where giving the
+    /// compositor a full frame between renders prevents pipeline overlap from
+    /// skewing results. On native the frame wait is a no-op, so the only
+    /// difference from [`Self::measure`] is the per-iteration timing overhead
+    /// (negligible for GPU-bound work).
+    fn measure_per_iteration_with_frame_wait<F, T: Timer>(
+        timer: &T,
+        bench_id: &str,
+        mut f: F,
+        total_iters: usize,
+    ) -> Statistics
+    where
+        F: FnMut(),
+    {
+        let emit_marks = total_iters <= MAX_MARKED_ITERS;
+        let mut total_ns = 0.0;
+
+        for i in 0..total_iters {
+            if emit_marks {
+                timer.mark(&format!("bench:{bench_id}:iter:{i}"));
+            }
+
+            let iter_start = timer.now();
+            f();
+            total_ns += timer.elapsed_ns(iter_start);
+
+            if emit_marks {
+                timer.mark(&format!("bench:{bench_id}:iter:{i}:end"));
+                timer.measure_span(
+                    &format!("{bench_id} iter {i}"),
+                    &format!("bench:{bench_id}:iter:{i}"),
+                    &format!("bench:{bench_id}:iter:{i}:end"),
+                );
+            }
+
+            // Untimed frame wait — gives the GPU time to fully flush.
+            if i + 1 < total_iters {
+                timer.wait_one_frame();
+            }
+        }
+
+        Statistics::from_measurement(total_ns, total_iters)
+    }
+
+    /// Run a benchmark using the provided timer, with optional callback after
+    /// calibration.
+    ///
+    /// When `per_iteration` is `true` the measurement phase uses
+    /// [`Self::measure_per_iteration`] (individual timing + frame waits);
+    /// otherwise it uses the bulk [`Self::measure`] loop.
     fn run_with_timer<F, T: Timer, C: FnOnce()>(
         &self,
         timer: &T,
@@ -59,19 +118,40 @@ impl BenchRunner {
         simd_variant: &str,
         mut f: F,
         on_calibrated: C,
+        per_iteration: bool,
     ) -> BenchmarkResult
     where
         F: FnMut(),
     {
-        let (batch_size, batch_time_ns) = self.calibrate(timer, &mut f);
+        // Clear stale marks/measures from any previous benchmark run.
+        timer.clear_marks();
+        timer.clear_measures();
+
+        timer.mark(&format!("bench:{id}:warmup:start"));
+        self.warmup(&mut f);
+        timer.mark(&format!("bench:{id}:warmup:end"));
+        timer.measure_span(
+            &format!("{id} warm-up"),
+            &format!("bench:{id}:warmup:start"),
+            &format!("bench:{id}:warmup:end"),
+        );
 
         on_calibrated();
 
-        let target_ns = self.measurement_ms as f64 * 1_000_000.0;
-        let iters_per_ns = batch_size as f64 / batch_time_ns;
-        let total_iters = (iters_per_ns * target_ns).ceil() as usize;
+        let total_iters = self.iterations as usize;
 
-        let statistics = Self::measure(timer, f, total_iters);
+        timer.mark(&format!("bench:{id}:measure:start"));
+        let statistics = if per_iteration {
+            Self::measure_per_iteration_with_frame_wait(timer, id, f, total_iters)
+        } else {
+            Self::measure(timer, f, total_iters)
+        };
+        timer.mark(&format!("bench:{id}:measure:end"));
+        timer.measure_span(
+            &format!("{id} measurement"),
+            &format!("bench:{id}:measure:start"),
+            &format!("bench:{id}:measure:end"),
+        );
 
         BenchmarkResult {
             id: id.to_string(),
@@ -88,7 +168,7 @@ impl BenchRunner {
     where
         F: FnMut(),
     {
-        self.run_with_timer(&PlatformTimer::default(), id, category, name, simd_variant, f, || {})
+        self.run_with_timer(&PlatformTimer::default(), id, category, name, simd_variant, f, || {}, false)
     }
 
     /// Run a benchmark with a callback when calibration completes.
@@ -97,7 +177,26 @@ impl BenchRunner {
         F: FnMut(),
         C: FnOnce(),
     {
-        self.run_with_timer(&PlatformTimer::default(), id, category, name, simd_variant, f, on_calibrated)
+        self.run_with_timer(&PlatformTimer::default(), id, category, name, simd_variant, f, on_calibrated, false)
+    }
+
+    /// Run a benchmark with per-iteration timing and an untimed frame wait
+    /// between iterations.
+    ///
+    /// Designed for GPU / WebGL benchmarks where each iteration should be
+    /// isolated by a full display-frame gap so the GPU pipeline can flush
+    /// completely. The wait time (~16 ms on WASM, no-op on native) is
+    /// **excluded** from the reported measurement.
+    ///
+    /// Note: because a ~16 ms pause is inserted between every iteration, the
+    /// wall-clock duration of the benchmark will be significantly longer than
+    /// the sum of iteration times alone. For example, 50 iterations adds
+    /// ~800 ms of untimed waiting on top of the actual render time.
+    pub fn run_with_frame_wait<F>(&self, id: &str, category: &str, name: &str, simd_variant: &str, f: F) -> BenchmarkResult
+    where
+        F: FnMut(),
+    {
+        self.run_with_timer(&PlatformTimer::default(), id, category, name, simd_variant, f, || {}, true)
     }
 }
 
@@ -108,6 +207,25 @@ trait Timer {
     fn now(&self) -> Self::Instant;
     fn elapsed_ns(&self, start: Self::Instant) -> f64;
     fn timestamp_ms(&self) -> u64;
+
+    /// Record a named performance mark. No-op on native.
+    fn mark(&self, _name: &str) {}
+
+    /// Record a named measure span between two previously recorded marks.
+    /// No-op on native.
+    fn measure_span(&self, _name: &str, _start_mark: &str, _end_mark: &str) {}
+
+    /// Clear all previously recorded marks. No-op on native.
+    fn clear_marks(&self) {}
+
+    /// Clear all previously recorded measures. No-op on native.
+    fn clear_measures(&self) {}
+
+    /// Busy-wait for approximately one display frame (~16 ms). Called between
+    /// measurement iterations when per-iteration timing is active. The wait is
+    /// **not** included in benchmark timing — it gives the GPU compositor time
+    /// to fully flush between frames. No-op on native.
+    fn wait_one_frame(&self) {}
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -151,11 +269,6 @@ struct WasmTimer {
     performance: web_sys::Performance,
 }
 
-// Note that the JS performance timer is likely not super accurate. However,
-// in our case we have a calibration phase to estimate how many iterations are needed
-// to run for a given number of seconds, and then we run the benchmarks all at once
-// for the estimated number of iterations. Therefore, being a few milliseconds off
-// does not matter that much.
 #[cfg(target_arch = "wasm32")]
 impl WasmTimer {
     fn new() -> Self {
@@ -189,6 +302,39 @@ impl Timer for WasmTimer {
     }
 
     fn timestamp_ms(&self) -> u64 {
-        self.performance.now() as u64
+        js_sys::Date::now() as u64
+    }
+
+    fn mark(&self, name: &str) {
+        let _ = self.performance.mark(name);
+    }
+
+    fn measure_span(&self, name: &str, start_mark: &str, end_mark: &str) {
+        let _ = self
+            .performance
+            .measure_with_start_mark_and_end_mark(name, start_mark, end_mark);
+    }
+
+    fn clear_marks(&self) {
+        let _ = self.performance.clear_marks();
+    }
+
+    fn clear_measures(&self) {
+        let _ = self.performance.clear_measures();
+    }
+
+    fn wait_one_frame(&self) {
+        /// Duration in milliseconds to busy-wait between measurement iterations when
+        /// per-iteration frame-wait timing is active. Approximates one display frame
+        /// at 60 Hz, giving the GPU compositor time to fully flush between frames.
+        /// 
+        /// Without idling the CPU like this, we can enter a state where we continually
+        /// flush commands to the GPU causing pipeline stalls. Pipeline stalling can mask
+        /// regressions in CPU performance.
+        #[cfg(target_arch = "wasm32")]
+        const FRAME_WAIT_MS: f64 = 16.67;
+
+        let target = self.performance.now() + FRAME_WAIT_MS;
+        while self.performance.now() < target {}
     }
 }
