@@ -118,7 +118,7 @@ serve_with_coi() {
   local port="$1"
   local directory="$2"
 
-  python3 -c "
+  exec python3 -c "
 import http.server, socketserver, functools, os
 
 os.chdir('${directory}')

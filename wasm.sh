@@ -54,6 +54,7 @@ done
 # ---------------------------------------------------------------------------
 PIDS=()
 cleanup() {
+  trap - EXIT INT TERM   # prevent re-entry (INT + EXIT would fire twice)
   echo ""
   echo "Shutting down..."
   for pid in "${PIDS[@]}"; do
