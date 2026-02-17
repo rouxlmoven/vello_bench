@@ -333,10 +333,6 @@ impl Renderer for HybridRenderer {
             panic!("hybrid renderer doesn't support multi-threading");
         }
 
-        if !matches!(level, fearless_simd::Level::Fallback(_)) {
-            panic!("hybrid renderer doesn't support SIMD");
-        }
-
         let scene = Scene::new(width, height);
         let instance = wgpu::Instance::default();
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
@@ -368,12 +364,16 @@ impl Renderer for HybridRenderer {
         });
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        let renderer = vello_hybrid::Renderer::new(
+        let renderer = vello_hybrid::Renderer::new_with(
             &device,
             &vello_hybrid::RenderTargetConfig {
                 format: texture.format(),
                 width: width.into(),
                 height: height.into(),
+            },
+            vello_hybrid::RenderSettings {
+                level,
+                ..Default::default()
             },
         );
 
